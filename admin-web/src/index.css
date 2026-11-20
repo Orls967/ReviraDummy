@@ -1,0 +1,121 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/archivo/wdth.css';
+
+:root {
+  --brand-gold: #d9bf63;
+  --brand-teal: #4c969b;
+  --brand-black: #000000;
+  --background: #f5f5f2;
+  --foreground: #0b0b0b;
+  --card: #ffffff;
+  --card-foreground: #0b0b0b;
+  --popover: #ffffff;
+  --popover-foreground: #0b0b0b;
+  --primary: var(--brand-gold);
+  --primary-foreground: #0b0b0b;
+  --secondary: #efeee9;
+  --secondary-foreground: #1c1c1a;
+  --muted: #f0efea;
+  --muted-foreground: #5f5e57;
+  --accent: #e2efef;
+  --accent-foreground: #24585c;
+  --destructive: #c62828;
+  --destructive-foreground: #ffffff;
+  --border: #e4e2da;
+  --input: #d5d2c7;
+  --ring: var(--brand-teal);
+  --sidebar: var(--brand-black);
+  --sidebar-foreground: #f5f5f2;
+  --sidebar-muted: #a8a59a;
+  --sidebar-accent: #1d1b12;
+  --sidebar-border: #262626;
+  --radius: 0.625rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #f3f2ee;
+    --card: #141414;
+    --card-foreground: #f3f2ee;
+    --popover: #171717;
+    --popover-foreground: #f3f2ee;
+    --secondary: #1f1f1f;
+    --secondary-foreground: #ecebe6;
+    --muted: #1c1c1c;
+    --muted-foreground: #a3a199;
+    --accent: #142a2c;
+    --accent-foreground: #9fd3d6;
+    --destructive: #ef5350;
+    --destructive-foreground: #0b0b0b;
+    --border: #262626;
+    --input: #353535;
+    --sidebar-border: #1f1f1f;
+  }
+}
+
+@theme inline {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-brand: 'Archivo Variable', 'Inter Variable', ui-sans-serif, sans-serif;
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-teal: var(--brand-teal);
+  --color-brand-black: var(--brand-black);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-border: var(--sidebar-border);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --animate-overlay-in: overlay-in 150ms ease-out;
+  --animate-dialog-in: dialog-in 160ms ease-out;
+
+  @keyframes overlay-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      scale: 0.97;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}

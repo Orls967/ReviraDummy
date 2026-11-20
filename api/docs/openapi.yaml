@@ -1,0 +1,1189 @@
+openapi: 3.1.0
+info:
+  title: Revira Gym API
+  version: 1.0.0
+  description: |
+    REST API Revira Gym untuk admin web dan aplikasi member.
+
+    - Semua endpoint berada di prefix `/api/v1`.
+    - Endpoint terproteksi memakai header `Authorization: Bearer <token>` dari `POST /login`.
+    - Tanggal (`*_date`) berformat `YYYY-MM-DD`, jam berformat `HH:MM`, dan waktu (`*_at`) berformat ISO 8601
+      dengan offset zona waktu aplikasi (bawaan `Asia/Makassar`, `+08:00`).
+    - Uang (`price`, `amount`) adalah bilangan bulat rupiah.
+    - Kelas hanya punya batas minimum peserta (`min_participants`); tidak ada kapasitas maksimum.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Server lokal (php artisan serve)
+security:
+  - bearerAuth: []
+tags:
+  - name: Umum
+  - name: Auth
+  - name: Member
+  - name: Admin
+paths:
+  /health:
+    get:
+      tags: [Umum]
+      summary: Cek status server
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: Server berjalan
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, time]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+                  time:
+                    type: string
+                    format: date-time
+  /membership-plans:
+    get:
+      tags: [Umum]
+      summary: Daftar paket membership aktif
+      operationId: listPublicPlans
+      security: []
+      responses:
+        '200':
+          description: Paket aktif, urut harga termurah
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MembershipPlan'
+  /login:
+    post:
+      tags: [Auth]
+      summary: Masuk dan dapatkan bearer token
+      description: Dibatasi 5 percobaan per menit per IP.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 150
+                password:
+                  type: string
+                  maxLength: 255
+                device_name:
+                  type: string
+                  maxLength: 100
+                  description: Nama perangkat untuk token. Bawaan `api`.
+      responses:
+        '200':
+          description: Login berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [token, token_type, user]
+                    properties:
+                      token:
+                        type: string
+                      token_type:
+                        type: string
+                        const: Bearer
+                      user:
+                        $ref: '#/components/schemas/User'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /logout:
+    post:
+      tags: [Auth]
+      summary: Cabut token yang sedang dipakai
+      operationId: logout
+      responses:
+        '204':
+          description: Token dicabut
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+  /me:
+    get:
+      tags: [Auth]
+      summary: Profil user yang sedang login
+      description: Untuk member, `membership` berisi status membership terkini. Untuk admin bernilai `null`.
+      operationId: getMe
+      responses:
+        '200':
+          description: Profil user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/User'
+                      - type: object
+                        required: [membership]
+                        properties:
+                          membership:
+                            oneOf:
+                              - $ref: '#/components/schemas/MembershipSummary'
+                              - type: 'null'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+  /member/memberships:
+    get:
+      tags: [Member]
+      summary: Riwayat membership milik member
+      operationId: listMyMemberships
+      responses:
+        '200':
+          description: Riwayat terbaru lebih dulu
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Membership'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Member]
+      summary: Ajukan membership baru atau perpanjangan
+      description: |
+        Membuat membership `pending` dan transaksi `pending`. Ditolak (422) bila masih ada pengajuan pending
+        atau periode bertabrakan dengan membership aktif. Periode final ditetapkan saat admin menyetujui.
+        Dibatasi 10 permintaan per menit.
+      operationId: applyMembership
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [membership_plan_id, start_date, payment_method]
+              properties:
+                membership_plan_id:
+                  type: integer
+                  description: ID paket yang aktif
+                start_date:
+                  type: string
+                  format: date
+                  description: Tidak boleh sebelum hari ini
+                payment_method:
+                  $ref: '#/components/schemas/PaymentMethod'
+      responses:
+        '201':
+          description: Pengajuan dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Membership'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /member/class-schedules:
+    get:
+      tags: [Member]
+      summary: Daftar jadwal kelas untuk member
+      operationId: listMemberSchedules
+      parameters:
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+      responses:
+        '200':
+          description: Jadwal urut tanggal dan jam, lengkap dengan `is_booked`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassScheduleList'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /member/class-schedules/{classSchedule}:
+    parameters:
+      - $ref: '#/components/parameters/ClassScheduleId'
+    get:
+      tags: [Member]
+      summary: Detail jadwal kelas
+      operationId: getMemberSchedule
+      responses:
+        '200':
+          $ref: '#/components/responses/ClassScheduleItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /member/class-schedules/{classSchedule}/booking:
+    parameters:
+      - $ref: '#/components/parameters/ClassScheduleId'
+    post:
+      tags: [Member]
+      summary: Booking sesi kelas
+      description: |
+        Hanya untuk sesi berstatus `scheduled` yang belum dimulai, dan member harus punya membership aktif
+        pada tanggal sesi. Mengembalikan jadwal terbaru (counter peserta dan `is_booked`).
+      operationId: bookSchedule
+      responses:
+        '200':
+          $ref: '#/components/responses/ClassScheduleItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [Member]
+      summary: Batalkan booking
+      description: Hanya sebelum sesi dimulai. 404 bila member tidak punya booking aktif di sesi ini.
+      operationId: cancelBooking
+      responses:
+        '200':
+          $ref: '#/components/responses/ClassScheduleItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /member/bookings:
+    get:
+      tags: [Member]
+      summary: Sesi yang dibooking dan belum selesai
+      operationId: listMyBookings
+      responses:
+        '200':
+          description: Booking aktif urut waktu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassScheduleList'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/membership-plans:
+    get:
+      tags: [Admin]
+      summary: Semua paket (termasuk nonaktif)
+      operationId: listPlans
+      responses:
+        '200':
+          description: Daftar paket
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MembershipPlan'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Admin]
+      summary: Buat paket
+      operationId: createPlan
+      requestBody:
+        $ref: '#/components/requestBodies/MembershipPlanInput'
+      responses:
+        '201':
+          $ref: '#/components/responses/MembershipPlanItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /admin/membership-plans/{membershipPlan}:
+    parameters:
+      - name: membershipPlan
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [Admin]
+      summary: Detail paket
+      operationId: getPlan
+      responses:
+        '200':
+          $ref: '#/components/responses/MembershipPlanItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Admin]
+      summary: Ubah paket
+      operationId: updatePlan
+      requestBody:
+        $ref: '#/components/requestBodies/MembershipPlanInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/MembershipPlanItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [Admin]
+      summary: Hapus paket yang belum pernah dipakai
+      description: Paket yang sudah dipakai membership mengembalikan 409; nonaktifkan lewat `is_active=false`.
+      operationId: deletePlan
+      responses:
+        '204':
+          description: Paket dihapus
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /admin/members:
+    get:
+      tags: [Admin]
+      summary: Daftar member dengan status membership terkini
+      description: |
+        Status terkini memakai prioritas active > pending > upcoming > expired > none.
+        Paket dan periode diambil dari membership yang menentukan status. 15 baris per halaman.
+      operationId: listMembers
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/CurrentMembershipStatus'
+        - name: membership_plan_id
+          in: query
+          description: Paket pada membership penentu status
+          schema:
+            type: integer
+        - name: search
+          in: query
+          description: Cari di nama, email, atau nomor telepon
+          schema:
+            type: string
+            maxLength: 100
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Halaman daftar member
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, links, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminMember'
+                  links:
+                    $ref: '#/components/schemas/PaginationLinks'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /admin/transactions:
+    get:
+      tags: [Admin]
+      summary: Daftar transaksi membership
+      operationId: listTransactions
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/TransactionStatus'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Transaksi terbaru lebih dulu, 15 per halaman
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, links, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminTransaction'
+                  links:
+                    $ref: '#/components/schemas/PaginationLinks'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /admin/transactions/{transaction}/approve:
+    parameters:
+      - $ref: '#/components/parameters/TransactionId'
+    post:
+      tags: [Admin]
+      summary: Setujui transaksi dan aktifkan membership
+      description: |
+        `start_date` yang sudah lewat digeser ke hari ini. `end_date` inklusif = `start_date` + durasi paket - 1.
+        409 bila transaksi sudah diproses atau periode bertabrakan dengan membership aktif lain.
+      operationId: approveTransaction
+      responses:
+        '200':
+          $ref: '#/components/responses/AdminTransactionItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /admin/transactions/{transaction}/reject:
+    parameters:
+      - $ref: '#/components/parameters/TransactionId'
+    post:
+      tags: [Admin]
+      summary: Tolak transaksi
+      operationId: rejectTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  maxLength: 255
+      responses:
+        '200':
+          $ref: '#/components/responses/AdminTransactionItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /admin/class-schedules:
+    get:
+      tags: [Admin]
+      summary: Daftar jadwal kelas
+      operationId: listSchedules
+      parameters:
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+      responses:
+        '200':
+          description: Jadwal urut tanggal dan jam
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassScheduleList'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      tags: [Admin]
+      summary: Buat jadwal kelas
+      description: 422 bila waktu mulai sudah lewat atau instruktur sudah mengajar sesi lain yang bertumpuk.
+      operationId: createSchedule
+      requestBody:
+        $ref: '#/components/requestBodies/ClassScheduleInput'
+      responses:
+        '201':
+          $ref: '#/components/responses/ClassScheduleItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /admin/class-schedules/{classSchedule}:
+    parameters:
+      - $ref: '#/components/parameters/ClassScheduleId'
+    get:
+      tags: [Admin]
+      summary: Detail jadwal beserta peserta
+      operationId: getSchedule
+      responses:
+        '200':
+          $ref: '#/components/responses/ClassScheduleItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Admin]
+      summary: Ubah jadwal yang masih terjadwal dan belum dimulai
+      operationId: updateSchedule
+      requestBody:
+        $ref: '#/components/requestBodies/ClassScheduleInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/ClassScheduleItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [Admin]
+      summary: Hapus jadwal yang belum pernah dibooking
+      operationId: deleteSchedule
+      responses:
+        '204':
+          description: Jadwal dihapus
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /admin/class-schedules/{classSchedule}/status:
+    parameters:
+      - $ref: '#/components/parameters/ClassScheduleId'
+    patch:
+      tags: [Admin]
+      summary: Ubah status sesi
+      description: |
+        Perpindahan yang diizinkan: scheduled → ongoing/completed/cancelled, ongoing → completed/cancelled.
+        `cancel_reason` wajib saat membatalkan.
+      operationId: updateScheduleStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [ongoing, completed, cancelled]
+                cancel_reason:
+                  type: [string, 'null']
+                  maxLength: 255
+      responses:
+        '200':
+          $ref: '#/components/responses/ClassScheduleItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /admin/classes:
+    get:
+      tags: [Admin]
+      summary: Kelas aktif untuk form jadwal
+      operationId: listClasses
+      responses:
+        '200':
+          description: Daftar kelas
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GymClass'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/instructors:
+    get:
+      tags: [Admin]
+      summary: Instruktur aktif untuk form jadwal
+      operationId: listInstructors
+      responses:
+        '200':
+          description: Daftar instruktur
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Instructor'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Token dari `POST /login`
+  parameters:
+    From:
+      name: from
+      in: query
+      description: Tanggal awal (bawaan hari ini)
+      schema:
+        type: string
+        format: date
+    To:
+      name: to
+      in: query
+      description: Tanggal akhir (bawaan from + 6 hari). Rentang maksimal 31 hari.
+      schema:
+        type: string
+        format: date
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    ClassScheduleId:
+      name: classSchedule
+      in: path
+      required: true
+      schema:
+        type: integer
+    TransactionId:
+      name: transaction
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBodies:
+    MembershipPlanInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [name, duration_days, price]
+            properties:
+              name:
+                type: string
+                maxLength: 100
+              duration_days:
+                type: integer
+                minimum: 1
+                maximum: 3650
+              price:
+                type: integer
+                minimum: 0
+              description:
+                type: [string, 'null']
+                maxLength: 1000
+              is_active:
+                type: boolean
+    ClassScheduleInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [gym_class_id, instructor_id, schedule_date, start_time, end_time]
+            properties:
+              gym_class_id:
+                type: integer
+              instructor_id:
+                type: integer
+              schedule_date:
+                type: string
+                format: date
+              start_time:
+                type: string
+                pattern: '^\d{2}:\d{2}$'
+                examples: ['07:00']
+              end_time:
+                type: string
+                pattern: '^\d{2}:\d{2}$'
+                description: Harus setelah start_time
+  responses:
+    Unauthenticated:
+      description: Token tidak ada, salah, atau sudah dicabut
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Message'
+          example:
+            message: Unauthenticated.
+    Forbidden:
+      description: Peran user tidak diizinkan
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Message'
+          example:
+            message: Anda tidak memiliki akses ke sumber daya ini.
+    NotFound:
+      description: Data tidak ditemukan
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Message'
+          example:
+            message: Data tidak ditemukan.
+    Conflict:
+      description: Bertabrakan dengan keadaan data saat ini
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Message'
+          example:
+            message: Anda sudah membooking sesi ini.
+    ValidationError:
+      description: Validasi atau aturan bisnis gagal
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [message, errors]
+            properties:
+              message:
+                type: string
+              errors:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: string
+          example:
+            message: Membership Anda tidak aktif pada tanggal sesi ini.
+            errors:
+              booking:
+                - Membership Anda tidak aktif pada tanggal sesi ini.
+    TooManyRequests:
+      description: Terlalu banyak percobaan
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Message'
+    MembershipPlanItem:
+      description: Paket membership
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                $ref: '#/components/schemas/MembershipPlan'
+    AdminTransactionItem:
+      description: Transaksi setelah diproses
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                $ref: '#/components/schemas/AdminTransaction'
+    ClassScheduleItem:
+      description: Jadwal kelas
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                $ref: '#/components/schemas/ClassSchedule'
+  schemas:
+    Message:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+    User:
+      type: object
+      required: [id, name, email, phone_number, role]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone_number:
+          type: [string, 'null']
+        role:
+          type: string
+          enum: [admin, member]
+    PlanSummary:
+      type: object
+      required: [id, name, duration_days]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        duration_days:
+          type: integer
+    MembershipPlan:
+      type: object
+      required: [id, name, duration_days, price, description, is_active]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        duration_days:
+          type: integer
+        price:
+          type: integer
+          description: Rupiah
+        description:
+          type: [string, 'null']
+        is_active:
+          type: boolean
+    CurrentMembershipStatus:
+      type: string
+      enum: [active, pending, upcoming, expired, none]
+      description: |
+        active = berlaku hari ini; pending = menunggu verifikasi; upcoming = disetujui tetapi belum mulai;
+        expired = sudah berakhir; none = belum pernah punya membership atau hanya pengajuan yang ditolak.
+    MembershipSummary:
+      type: object
+      required: [status, is_active, has_pending_application, plan, start_date, end_date]
+      properties:
+        status:
+          $ref: '#/components/schemas/CurrentMembershipStatus'
+        is_active:
+          type: boolean
+        has_pending_application:
+          type: boolean
+          description: True bila ada pengajuan yang menunggu verifikasi, termasuk perpanjangan saat status active.
+        plan:
+          oneOf:
+            - $ref: '#/components/schemas/PlanSummary'
+            - type: 'null'
+        start_date:
+          type: [string, 'null']
+          format: date
+        end_date:
+          type: [string, 'null']
+          format: date
+    PaymentMethod:
+      type: string
+      enum: [transfer, on_the_spot]
+    TransactionStatus:
+      type: string
+      enum: [pending, verified, rejected]
+    TransactionSummary:
+      type: object
+      required: [id, amount, payment_method, verification_status, reject_reason, verified_at, created_at]
+      properties:
+        id:
+          type: integer
+        amount:
+          type: integer
+        payment_method:
+          $ref: '#/components/schemas/PaymentMethod'
+        verification_status:
+          $ref: '#/components/schemas/TransactionStatus'
+        reject_reason:
+          type: [string, 'null']
+        verified_at:
+          type: [string, 'null']
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+    Membership:
+      type: object
+      required: [id, record_type, status, start_date, end_date, created_at]
+      properties:
+        id:
+          type: integer
+        record_type:
+          type: string
+          enum: [registration, extension]
+        status:
+          type: string
+          enum: [pending, active, expired, rejected]
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: [string, 'null']
+          format: date
+          description: Inklusif; null sampai disetujui
+        plan:
+          $ref: '#/components/schemas/PlanSummary'
+        transaction:
+          oneOf:
+            - $ref: '#/components/schemas/TransactionSummary'
+            - type: 'null'
+        created_at:
+          type: string
+          format: date-time
+    MemberContact:
+      type: object
+      required: [id, name, email, phone_number]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone_number:
+          type: [string, 'null']
+    AdminMember:
+      allOf:
+        - $ref: '#/components/schemas/MemberContact'
+        - type: object
+          required: [membership_status, plan, start_date, end_date, registered_at]
+          properties:
+            membership_status:
+              $ref: '#/components/schemas/CurrentMembershipStatus'
+            plan:
+              oneOf:
+                - $ref: '#/components/schemas/PlanSummary'
+                - type: 'null'
+            start_date:
+              type: [string, 'null']
+              format: date
+            end_date:
+              type: [string, 'null']
+              format: date
+            registered_at:
+              type: string
+              format: date-time
+    AdminTransaction:
+      allOf:
+        - $ref: '#/components/schemas/TransactionSummary'
+        - type: object
+          required: [member, membership]
+          properties:
+            member:
+              $ref: '#/components/schemas/MemberContact'
+            membership:
+              $ref: '#/components/schemas/Membership'
+    ScheduleStatus:
+      type: string
+      enum: [scheduled, ongoing, completed, cancelled]
+    ClassSchedule:
+      type: object
+      required:
+        - id
+        - class
+        - instructor
+        - schedule_date
+        - start_time
+        - end_time
+        - status
+        - display_status
+        - cancel_reason
+        - participants_count
+        - min_participants
+      properties:
+        id:
+          type: integer
+        class:
+          type: object
+          required: [id, name, description]
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            description:
+              type: [string, 'null']
+        instructor:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        schedule_date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          examples: ['07:00']
+        end_time:
+          type: string
+          examples: ['08:00']
+        status:
+          $ref: '#/components/schemas/ScheduleStatus'
+        display_status:
+          allOf:
+            - $ref: '#/components/schemas/ScheduleStatus'
+          description: Status tersimpan yang dikoreksi jam sekarang (sesi yang sudah lewat jam mulai/selesai).
+        cancel_reason:
+          type: [string, 'null']
+        participants_count:
+          type: integer
+          description: Booking yang tidak dibatalkan
+        min_participants:
+          type: integer
+        is_booked:
+          type: boolean
+          description: Hanya pada endpoint member
+        participants:
+          type: array
+          description: Hanya pada detail admin
+          items:
+            type: object
+            required: [id, booked_at, member]
+            properties:
+              id:
+                type: integer
+              booked_at:
+                type: string
+                format: date-time
+              member:
+                $ref: '#/components/schemas/MemberContact'
+    ClassScheduleList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClassSchedule'
+    GymClass:
+      type: object
+      required: [id, name, description, min_participants, default_instructor_id]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: [string, 'null']
+        min_participants:
+          type: integer
+        default_instructor_id:
+          type: [integer, 'null']
+    Instructor:
+      type: object
+      required: [id, name, specialization]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        specialization:
+          type: [string, 'null']
+    PaginationLinks:
+      type: object
+      properties:
+        first:
+          type: [string, 'null']
+        last:
+          type: [string, 'null']
+        prev:
+          type: [string, 'null']
+        next:
+          type: [string, 'null']
+    PaginationMeta:
+      type: object
+      required: [current_page, last_page, per_page, total]
+      properties:
+        current_page:
+          type: integer
+        from:
+          type: [integer, 'null']
+        last_page:
+          type: integer
+        path:
+          type: string
+        per_page:
+          type: integer
+        to:
+          type: [integer, 'null']
+        total:
+          type: integer
