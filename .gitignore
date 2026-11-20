@@ -1,0 +1,68 @@
+# Dependency (dipasang ulang dengan composer install / npm install)
+node_modules/
+api/vendor/
+
+# File environment lokal: berisi rahasia, buat sendiri dari daftar di docs/SETUP.md
+.env
+.env.*
+!.env.example
+
+# Basis data lokal SQLite
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+
+# Laravel: cache, sesi, view hasil compile, log, dan file upload lokal
+api/bootstrap/cache/*
+!api/bootstrap/cache/.gitkeep
+api/storage/*.key
+api/storage/app/private/*
+!api/storage/app/private/.gitkeep
+api/storage/app/public/*
+!api/storage/app/public/.gitkeep
+api/storage/framework/cache/data/*
+!api/storage/framework/cache/data/.gitkeep
+api/storage/framework/cache/locks/*
+!api/storage/framework/cache/locks/.gitkeep
+api/storage/framework/sessions/*
+!api/storage/framework/sessions/.gitkeep
+api/storage/framework/testing/*
+!api/storage/framework/testing/.gitkeep
+api/storage/framework/views/*
+!api/storage/framework/views/.gitkeep
+api/storage/logs/*
+!api/storage/logs/.gitkeep
+api/public/storage
+api/public/hot
+api/.phpunit.result.cache
+api/.phpunit.cache/
+
+# Build output frontend
+admin-web/dist/
+member-app/dist/
+member-app/web-build/
+*.tsbuildinfo
+
+# Expo: cache lokal, tipe hasil generate, dan folder native hasil `expo prebuild`
+member-app/.expo/
+member-app/expo-env.d.ts
+member-app/android/
+member-app/ios/
+
+# Laporan coverage
+coverage/
+
+# Log dan file sementara
+*.log
+npm-debug.log*
+*.tmp
+*.swp
+
+# Sistem operasi dan editor
+.DS_Store
+Thumbs.db
+.idea/
+
+# Pengaturan lokal Claude Code
+.claude/settings.local.json

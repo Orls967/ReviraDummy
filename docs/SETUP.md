@@ -50,7 +50,7 @@ File lingkungan **tidak** disertakan di repositori. Buat sendiri file berikut da
 |---|---|---|
 | `EXPO_PUBLIC_API_URL` | **Ya** | Origin server Laravel **tanpa** `/api/v1`. Untuk Expo Go di HP, pakai **IP komputer di jaringan Wi-Fi yang sama** (bukan `localhost`) |
 
-> Saran isi `.gitignore` (buat sendiri sebelum commit): `node_modules/`, `api/vendor/`, `.env`, `.env.*`, `api/database/*.sqlite`, `api/storage/logs/*.log`, `api/storage/framework/**` (kecuali `.gitkeep`), `api/bootstrap/cache/*.php`, `admin-web/dist/`, `member-app/.expo/`, `member-app/dist/`, `.DS_Store`.
+> Semua file di atas, beserta basis data SQLite, dependency, cache dan log Laravel, build output, dan cache Expo, sudah diabaikan oleh [`.gitignore`](../.gitignore) di root repositori.
 
 ## 3. Menjalankan API (`api/`)
 

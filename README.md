@@ -18,12 +18,16 @@ Monorepo aplikasi gym Revira Fitness Center, terdiri dari tiga bagian yang salin
 | [`admin-web/`](admin-web) | React 19, Vite 8, TypeScript, Tailwind CSS 4, komponen gaya shadcn/ui di atas Radix UI | Admin gym (desktop) |
 | [`member-app/`](member-app) | Expo SDK 58, React Native 0.88, expo-router, React Native Paper (Material 3) | Member gym (Expo Go, Android, iOS, web) |
 
+Member mengajukan membership dan membooking kelas lewat aplikasi member; admin memverifikasi pembayaran, mengelola paket dan jadwal, serta memantau aktivitas lewat panel admin. Semua data berasal dari API Laravel, tanpa data mock.
+
 Alur utama yang sudah diuji ujung ke ujung:
 1. Member memilih paket (durasi dan harga terlihat jelas) lalu mengajukan membership.
 2. Admin menyetujui; aksinya tercatat di Log Aktivitas.
 3. Periode aktif muncul di daftar member.
 4. Member membooking kelas.
 5. Counter peserta bertambah dan admin melihat pesertanya.
+
+Harga membership saat ini (detail di [Harga membership](#harga-membership)):
 
 | Paket | Durasi | Harga |
 |---|---|---|
@@ -34,51 +38,73 @@ Alur utama yang sudah diuji ujung ke ujung:
 
 ## Daftar isi
 
-- [Identitas visual](#identitas-visual)
+- [Mulai cepat](#mulai-cepat)
+- [Fitur](#fitur)
 - [Tampilan aplikasi](#tampilan-aplikasi)
   - [Admin Web](#admin-web)
   - [Member App](#member-app)
   - [Mode gelap dan responsif](#mode-gelap-dan-responsif)
-- [Fitur](#fitur)
-- [Aturan bisnis](#aturan-bisnis)
+- [Arsitektur dan struktur folder](#arsitektur-dan-struktur-folder)
+- [Teknologi dan prasyarat](#teknologi-dan-prasyarat)
+- [Instalasi dan menjalankan](#instalasi-dan-menjalankan)
+- [Perintah pengembangan](#perintah-pengembangan)
+- [Dokumentasi API](#dokumentasi-api)
 - [Harga membership](#harga-membership)
 - [Keamanan](#keamanan)
-- [UI/UX dan animasi](#uiux-dan-animasi)
-- [Arsitektur dan struktur folder](#arsitektur-dan-struktur-folder)
-- [Spesifikasi teknis](#spesifikasi-teknis)
+- [Aturan bisnis](#aturan-bisnis)
 - [Skema database](#skema-database)
-- [Kontrak API](#kontrak-api)
-- [Instalasi dan menjalankan](#instalasi-dan-menjalankan)
-- [Pengujian](#pengujian)
+- [UI/UX dan animasi](#uiux-dan-animasi)
+- [Identitas visual](#identitas-visual)
+- [Troubleshooting](#troubleshooting)
 - [Hasil analisis](#hasil-analisis)
-- [Keterbatasan dan rekomendasi](#keterbatasan-dan-rekomendasi)
+- [Keterbatasan dan tindak lanjut](#keterbatasan-dan-tindak-lanjut)
 
 ---
 
-## Identitas visual
+## Mulai cepat
 
-Palet dan tipografi mengikuti brand board **Revira Fitness Center**.
+Butuh PHP ≥ 8.3, Composer 2, dan Node.js 22/24. Langkah lengkap, daftar variabel lingkungan, dan skenario uji ada di **[docs/SETUP.md](docs/SETUP.md)**.
 
-<p align="center">
-  <img src="docs/brand/palette.png" width="640" alt="Palet warna: Gold #D9BF63, Teal #4C969B, Black #000000" />
-</p>
+```bash
+# 1. API (http://127.0.0.1:8000)
+cd api && composer install
+# buat api/.env (APP_ENV=local, APP_KEY, SEED_PASSWORD, dll. lihat SETUP.md)
+php artisan key:generate && touch database/database.sqlite && php artisan migrate --seed
+php artisan serve
+```
 
-| Elemen | Penerapan |
-|---|---|
-| **Gold `#D9BF63`** | Tombol utama admin (teks hitam di atas emas), nama paket di kartu membership, menu aktif sidebar, warna utama tema gelap |
-| **Teal `#4C969B`** | Tulisan "FITNESS CENTER", status *Terjadwal*/info, cincin fokus keyboard |
-| **Black `#000000`** | Sidebar admin, monogram, kartu membership, tombol utama member di tema terang (teks emas) |
-| Monogram "R" | Ikon aplikasi, favicon, logo di login dan sidebar ([`member-app/assets/brand/mark.png`](member-app/assets/brand/mark.png)) |
-| Wordmark | "REVIRA" memakai Archivo (lebar 125%, tebal 800); "FITNESS CENTER" teal dengan jarak huruf lebar |
+```bash
+# 2. Admin web (http://localhost:5173), isi admin-web/.env.local dengan VITE_API_URL
+cd admin-web && npm install && npm run dev
+```
 
-Catatan aksesibilitas warna: emas dan teal asli kontrasnya rendah sebagai teks di atas putih (sekitar 1,8:1 dan 3,4:1). Karena itu:
-- Di tema terang, emas dipakai sebagai latar atau di atas hitam, dan teks sekunder memakai teal yang digelapkan (`#2F6E73`, sekitar 5,9:1).
-- Di tema gelap, emas menjadi warna utama.
-- Warna status (hijau, kuning, merah) tetap semantik supaya maknanya tidak tertukar.
+```bash
+# 3. Member app (Expo Go atau web di http://localhost:8081), isi member-app/.env dengan EXPO_PUBLIC_API_URL
+cd member-app && npm install && npx expo start
+```
 
-> **Logo ilustrasi** (siluet atlet pada brand board) tidak tersedia sebagai file, sehingga tidak disertakan dan tidak digambar ulang. Monogram dan wordmark di aplikasi dibuat ulang dari font Archivo mengikuti brand board. Bila file logo asli tersedia, ganti aset di [`member-app/assets/brand/`](member-app/assets/brand) dan komponen [`BrandMark`](admin-web/src/components/brand/BrandMark.tsx)/[`BrandWordmark`](admin-web/src/components/brand/BrandWordmark.tsx).
+## Fitur
 
----
+**Member (aplikasi member)**
+- Login dan logout; akun admin ditolak di aplikasi ini.
+- Beranda: kartu membership (status, paket, periode, sisa hari) dan booking terdekat.
+- Lihat paket beserta durasi dan harga, lalu ajukan membership: pilih paket, tanggal mulai, dan metode bayar (`transfer`/`on_the_spot`), dengan ringkasan total bayar.
+- Jadwal kelas 7 hari, detail sesi dengan counter peserta, booking dan pembatalan sebelum sesi dimulai, serta daftar Booking Saya.
+- Profil dan riwayat membership (disetujui, menunggu, ditolak beserta alasan).
+
+**Admin (panel admin web)**
+- Login dan logout; akun member ditolak di panel ini.
+- Daftar member: status terkini, paket, periode, telepon; filter status, filter `membership_plan_id`, pencarian, paginasi 15 baris.
+- Verifikasi transaksi: setujui (periode inklusif `start + durasi − 1`, tanggal lampau digeser ke hari persetujuan) atau tolak dengan alasan.
+- Paket membership: CRUD, nama unik, paket yang sudah dipakai hanya bisa dinonaktifkan.
+- Jadwal kelas: tambah/ubah (cek jam lewat dan bentrok instruktur), ubah status, batal dengan alasan, hapus sesi tanpa booking, daftar peserta.
+- Log Aktivitas: jejak aksi admin (paket, transaksi, jadwal, login admin) dengan filter jenis aksi.
+
+**Umum**
+- Dua peran (admin dan member) dengan token bearer Sanctum yang punya masa berlaku (admin 8 jam, member 30 hari); token kedaluwarsa mengakhiri sesi dan kembali ke login.
+- Status membership terkini: `active` > `pending` > `upcoming` > `expired` > `none`.
+- Konsistensi data di klien: tombol submit terkunci selama request, request lama dibatalkan (`AbortController`), data diambil setelah sesi siap dan dimuat ulang saat layar difokuskan.
+- Bahasa antarmuka Indonesia, tema terang/gelap mengikuti sistem.
 
 ## Tampilan aplikasi
 
@@ -163,66 +189,201 @@ Semua tangkapan layar diambil dari aplikasi yang berjalan dengan **API Laravel a
   </tr>
 </table>
 
----
+## Arsitektur dan struktur folder
 
-## Fitur
+```text
+.
+├── api/                         Laravel 13 (REST /api/v1)
+│   ├── app/Enums                Status sebagai backed enum
+│   ├── app/Http/Controllers     Controller tipis (tanpa logika bisnis)
+│   ├── app/Http/Requests        Form Request untuk semua validasi
+│   ├── app/Http/Resources       API Resource untuk semua respons
+│   ├── app/Http/Middleware      EnsureRole (role:admin / role:member), SecurityHeaders
+│   ├── app/Services             Logika bisnis: booking, membership, transaksi, jadwal, member, katalog paket, audit
+│   ├── config/membership.php    Satu-satunya sumber harga dan durasi paket standar
+│   ├── config/security.php      Umur token per peran dan batas permintaan
+│   ├── config/cors.php          Origin frontend yang diizinkan
+│   ├── app/Casts/DateOnly.php   Kolom tanggal selalu Y-m-d
+│   ├── database/                Migrasi, factory, seeder data fiktif
+│   ├── docs/openapi.yaml        Kontrak API (OpenAPI 3.1)
+│   ├── lang/id                  Pesan validasi bahasa Indonesia
+│   └── tests/                   PHPUnit (Feature + Unit)
+├── admin-web/                   React + Vite + TypeScript strict
+│   └── src/
+│       ├── api/                 Fungsi endpoint bertipe
+│       ├── auth/                AuthProvider, guard RequireAdmin
+│       ├── components/          ui/ (Radix + Tailwind), brand/, layout/
+│       ├── domain/              Normalisasi status, progres peserta (dites)
+│       ├── features/            members, transactions, schedules, plans, audit, auth
+│       ├── hooks/               useApiQuery (abort + reload), useMutation (kunci submit)
+│       └── lib/                 http client, format, config, token storage
+├── member-app/                  Expo + expo-router + TypeScript strict
+│   ├── assets/                  Ikon, favicon, monogram, wordmark
+│   └── src/
+│       ├── app/                 Rute: login, (tabs)/…, schedules/[id], plans, apply
+│       ├── api/  auth/  hooks/  lib/
+│       ├── components/          Kartu paket/jadwal/membership, chip status, FadeIn, state views
+│       ├── domain/              Aturan booking, normalisasi status, label paket (dites)
+│       └── theme.ts             Tema Material 3 dengan palet brand
+├── docs/
+│   ├── README.md                Indeks dokumentasi
+│   ├── SETUP.md                 Panduan menjalankan, variabel lingkungan, skenario E2E
+│   ├── screenshots/             Tangkapan layar README
+│   └── brand/                   Palet warna
+└── .gitignore                   Dependency, env lokal, SQLite, cache/log Laravel, build, cache Expo
+```
 
-**Autentikasi**
-- Login, `/me`, dan logout dengan bearer token Sanctum.
-- Dua peran: admin dan member.
-- Admin web menolak akun member, dan aplikasi member menolak akun admin.
-- Token punya masa berlaku (admin 8 jam, member 30 hari). Token kedaluwarsa (401) otomatis mengakhiri sesi dan kembali ke login.
+Prinsip yang dipakai:
+- Laravel mengikuti PSR-12 (dicek Pint): Form Request, API Resource, service class, dan middleware peran.
+- Frontend memakai TypeScript strict (tanpa `any`), komponen kecil dengan satu tanggung jawab, dan logika dipisah ke hooks/domain.
+- Nama kode dalam bahasa Inggris; teks antarmuka dalam bahasa Indonesia.
 
-**Paket membership**
-- Daftar paket aktif bersifat publik, diurutkan dari yang termurah.
-- CRUD khusus admin, nama paket unik. Paket yang sudah dipakai tidak bisa dihapus, cukup dinonaktifkan.
-- Harga standar: lihat [Harga membership](#harga-membership).
+## Teknologi dan prasyarat
 
-**Membership**
-- Member mengajukan dengan memilih paket, tanggal mulai, dan metode bayar (`transfer`/`on_the_spot`).
-- Admin menyetujui atau menolak transaksinya.
-- Periode: `end_date = start_date + durasi − 1` (inklusif). Tanggal mulai yang sudah lewat saat disetujui digeser ke hari persetujuan.
-- Status terkini: `active` > `pending` > `upcoming` > `expired` > `none`.
+Prasyarat untuk menjalankan:
 
-**Daftar member (admin)**
-- Status, paket, dan periode diambil dari membership penentu, plus nomor telepon.
-- Filter status, filter `membership_plan_id`, dan pencarian.
-- Paginasi 15 baris dengan `meta`.
-
-**Jadwal kelas (admin)**
-- Daftar per rentang tanggal, maksimal 31 hari.
-- Tambah dan ubah, dengan cek jam lewat dan bentrok instruktur.
-- Ubah status (berlangsung/selesai/batal dengan alasan).
-- Hapus sesi yang belum pernah dibooking.
-- Daftar peserta.
-
-**Log aktivitas (admin)**
-- Setiap aksi admin yang mengubah data penting tercatat: buat/ubah/hapus paket (dengan nilai lama → baru), setujui/tolak transaksi, buat/ubah/ubah status/hapus sesi, dan login admin.
-- Halaman *Log Aktivitas* dengan filter jenis aksi dan paginasi 20 baris.
-
-**Booking (member)**
-- Jadwal 7 hari, detail sesi, booking dan pembatalan, Booking Saya.
-- Counter peserta dan status tampilan: terjadwal, berlangsung, selesai, dibatalkan.
-
-**Konsistensi data**
-- Tombol submit terkunci selama request.
-- Request lama dibatalkan (`AbortController`) saat filter, halaman, atau token berubah.
-- Data hanya diambil setelah sesi siap.
-- Data dimuat ulang saat layar difokuskan.
-
-## Aturan bisnis
-
-| Aturan | Hasil |
+| Alat | Kebutuhan |
 |---|---|
-| Booking hanya untuk sesi berstatus `scheduled` yang belum dimulai | Selain itu **422** (`errors.booking`) |
-| Member harus aktif pada **tanggal sesi** (`active` dan `start_date ≤ tanggal ≤ end_date`) | Bila tidak, **422** "Membership Anda tidak aktif pada tanggal sesi ini." |
-| Booking ganda pada sesi yang sama | **409** "Anda sudah membooking sesi ini." |
-| Kapasitas kelas | Hanya `min_participants`, **tanpa batas maksimum** (keputusan referensi). Karena itu status "penuh" tidak ada |
-| Pembatalan booking | Hanya sebelum sesi dimulai; booking bisa diulang (baris lama diaktifkan kembali) |
-| Pengajuan membership | Ditolak 422 bila masih ada pengajuan *pending* atau periode bertabrakan dengan membership aktif |
-| Persetujuan transaksi | 409 bila sudah diproses atau periode bertabrakan dengan membership aktif lain |
-| Validasi gagal / tanpa token / peran salah | **422** / **401** / **403** |
-| Batas permintaan | Login 5/menit per akun + IP dan 20/menit per IP; pengajuan dan booking 20/menit per member; endpoint lain 120/menit. Selebihnya **429** dengan header `Retry-After` |
+| PHP | ≥ 8.3 (dipakai 8.4) dengan ekstensi `pdo_sqlite`, `sqlite3`, `mbstring`, `openssl` |
+| Composer | 2.x |
+| Node.js / npm | 22.13+ atau 24 LTS (dipakai 24); Vite 8 butuh ≥ 20.19, Expo SDK 58 butuh ^22.13 atau ^24.3 |
+| Expo Go | Versi yang mendukung SDK 58, untuk mencoba di HP |
+
+Versi pustaka yang terpasang:
+
+| Komponen | Versi |
+|---|---|
+| PHP / Composer | 8.4 / 2.9 |
+| Laravel framework / Sanctum | 13.43 / 4.x |
+| Database lokal | SQLite (`pdo_sqlite`) |
+| Node.js / npm | 24 LTS / 11 |
+| React (admin) / Vite / TypeScript | 19.3.1 / 8.3.8 / 6.0.3 |
+| Tailwind CSS / Radix UI / React Router | 4.3.5 / 1.8.1 (`radix-ui`) / 8.5.2 |
+| Ikon / notifikasi / font | lucide-react 1.77 / sonner 2.0 / Inter & Archivo (Fontsource) |
+| Expo SDK / React Native / React (member) | 58.0.26 / 0.88.1 / 19.3.0 |
+| expo-router / React Native Paper | 58.0.32 / 5.15.5 |
+| Pengujian | PHPUnit 12, Vitest 5.1, Testing Library |
+| Zona waktu bisnis | `Asia/Makassar` (WITA), dapat diubah lewat `APP_TIMEZONE` |
+| Format respons | `data` (+ `links`/`meta` untuk paginasi); tanggal `YYYY-MM-DD`; jam `HH:MM`; waktu ISO 8601 dengan offset; uang integer rupiah |
+
+## Instalasi dan menjalankan
+
+Ringkasan di [Mulai cepat](#mulai-cepat); detail lengkap di **[docs/SETUP.md](docs/SETUP.md)**.
+
+**File environment** (tidak ada di repositori; buat sendiri, dan sudah diabaikan `.gitignore`):
+
+| File | Variabel wajib | Variabel opsional |
+|---|---|---|
+| `api/.env` | `APP_ENV` (isi `local`), `APP_KEY`, `SEED_PASSWORD` (untuk seeder) | `APP_NAME`, `APP_DEBUG`, `APP_URL`, `APP_TIMEZONE`, `APP_LOCALE`, `DB_CONNECTION`, `DB_DATABASE`, `CACHE_STORE`, `SESSION_DRIVER`, `QUEUE_CONNECTION`, `LOG_CHANNEL`, `LOG_LEVEL`, `CORS_ALLOWED_ORIGINS`, `ADMIN_TOKEN_TTL_MINUTES`, `MEMBER_TOKEN_TTL_MINUTES`, `SANCTUM_TOKEN_PREFIX`, `SANCTUM_EXPIRATION` |
+| `admin-web/.env.local` | `VITE_API_URL` (origin API tanpa `/api/v1`) | |
+| `member-app/.env` | `EXPO_PUBLIC_API_URL` (origin API tanpa `/api/v1`; di Expo Go pakai IP komputer) | |
+
+**Migrasi dan seeder**
+
+```bash
+cd api
+php artisan migrate --seed          # instalasi baru
+php artisan migrate                 # memperbarui basis data lama (harga paket ikut diperbarui tanpa menghapus data)
+php artisan migrate:fresh --seed    # mengulang dari nol (menghapus semua data lokal)
+```
+
+Seeder hanya berjalan bila `APP_ENV` bukan `production` dan `SEED_PASSWORD` terisi; aman dijalankan ulang.
+
+**Akun demo hasil seeder** (data fiktif, domain `.test`). Kata sandinya adalah nilai `SEED_PASSWORD` yang Anda isi sendiri; tidak ada kata sandi yang ditulis di repositori.
+
+| Email | Peran | Kondisi awal |
+|---|---|---|
+| `admin@revira.test` | admin | Pengelola |
+| `budi@revira.test` | member | Aktif (1 Bulan), sudah booking kelas |
+| `sari@revira.test` | member | Aktif (3 Bulan) |
+| `dewi@revira.test` | member | Kedaluwarsa |
+| `rudi@revira.test`, `putri@revira.test` | member | Pengajuan menunggu verifikasi |
+| `agus@revira.test` | member | Pengajuan ditolak |
+| `nina@revira.test` | member | Belum punya membership |
+
+**Menjalankan aplikasi**
+
+| Aplikasi | Perintah | Alamat bawaan |
+|---|---|---|
+| API | `php artisan serve` (untuk Expo Go di HP: `php artisan serve --host=0.0.0.0 --port=8000`) | `http://127.0.0.1:8000/api/v1` |
+| Admin web | `npm run dev` | `http://localhost:5173` |
+| Member app | `npx expo start` (`npm start`); web: `npm run web` atau tekan `w` | Expo Go via QR, web `http://localhost:8081` |
+
+## Perintah pengembangan
+
+Semua perintah di bawah ini didefinisikan di `package.json`/`composer.json` atau bawaan Laravel.
+
+| Folder | Perintah | Fungsi |
+|---|---|---|
+| `api/` | `php artisan test` (atau `composer test`) | PHPUnit |
+| `api/` | `./vendor/bin/pint --test` | Cek gaya kode PSR-12 (tanpa `--test` untuk merapikan) |
+| `api/` | `php artisan route:list --path=api` | Daftar route API |
+| `admin-web/` | `npm run dev` / `npm run build` / `npm run preview` | Dev server, build produksi ke `dist/`, pratinjau build |
+| `admin-web/` | `npm run typecheck` / `npm run lint` / `npm test` | TypeScript strict, ESLint, Vitest |
+| `member-app/` | `npm start` / `npm run web` / `npm run android` / `npm run ios` | Expo dev server |
+| `member-app/` | `npm run typecheck` / `npm run lint` / `npm test` | TypeScript strict, ESLint, Vitest |
+
+Satu baris per bagian untuk memeriksa semuanya:
+
+```bash
+cd api && php artisan test && ./vendor/bin/pint --test
+```
+
+```bash
+cd admin-web && npm run typecheck && npm run lint && npm test && npm run build
+```
+
+```bash
+cd member-app && npm run typecheck && npm run lint && npm test
+```
+
+Hasil terakhir:
+
+| Bagian | Cakupan | Hasil terakhir |
+|---|---|---|
+| API (PHPUnit) | Auth (login/me/logout/401/403), paket (CRUD, 404, 409), pengajuan (201, pending ganda, overlap, validasi 422), approval (periode inklusif, geser tanggal lampau, 409), booking (200, 401, 404, 409, 422 untuk sesi batal/dimulai/membership tidak aktif, batal dan booking ulang), daftar member (status, filter paket, pencarian, paginasi), jadwal admin, alur end-to-end, seeder (4 paket dan harganya), unit resolver status, status tampilan sesi, **keamanan** (rate limit login 429, pesan login seragam, umur token per peran dan kedaluwarsa, pembersihan token, header keamanan, CORS, IDOR booking/riwayat, member tanpa nama peserta lain, admin↔member 403, mass assignment, sanitasi HTML, nama paket unik, tanpa hash kata sandi di respons), **audit log** (approve/tolak/ubah harga/ubah status sesi/login admin, tanpa rahasia, tidak tercatat bila aksi gagal, filter, append-only), **katalog harga** (migrasi paket lama tanpa mengubah transaksi dan paket custom, idempoten, urutan dan harga endpoint publik) | **109 tes lulus (476 assertion)**, Pint lulus |
+| Admin web (Vitest) | Normalisasi status membership/jadwal/transaksi, aksi jadwal, progres peserta, klien HTTP dan error, format, `useMutation` (kunci submit ganda), `useApiQuery` (menunggu auth, membatalkan request lama, reload, 401), format `Rp75.000`/durasi/periode satu hari, ringkasan log aktivitas | **46 tes lulus**; `tsc` strict, ESLint (0 peringatan), dan build produksi lulus |
+| Member app (Vitest) | Aturan booking (aktif pada tanggal sesi, perpanjangan, sesi batal/dimulai, batal booking), normalisasi status, saran tanggal mulai, format tanggal/rupiah (harga paket baru, periode satu hari), label durasi dan label pembaca layar paket, helper HTTP | **33 tes lulus**; `tsc` strict dan ESLint (termasuk aturan React Compiler) lulus |
+
+## Dokumentasi API
+
+Kontrak lengkap: [`api/docs/openapi.yaml`](api/docs/openapi.yaml) (OpenAPI 3.1, 30 operasi, cocok dengan 30 route Laravel). File ini bisa dibuka di penampil OpenAPI apa pun (mis. Swagger Editor atau ekstensi OpenAPI di editor kode); server tidak menyajikan halaman dokumentasi API. Daftar route langsung: `php artisan route:list --path=api`.
+
+Semua endpoint berada di prefix `/api/v1`; endpoint terproteksi memakai header `Authorization: Bearer <token>` dari `POST /login`.
+
+| Metode | Endpoint | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/health` | Publik | Cek server |
+| GET | `/membership-plans` | Publik | Paket aktif |
+| POST | `/login` | Publik | Token bearer + `expires_at` (5/menit per akun) |
+| POST | `/logout` | Login | Cabut token (204) |
+| GET | `/me` | Login | Profil + ringkasan membership (`status`, `is_active`, `has_pending_application`, paket, periode) |
+| GET, POST | `/member/memberships` | Member | Riwayat / ajukan (201) |
+| GET | `/member/class-schedules?from&to` | Member | Jadwal + `is_booked` |
+| GET | `/member/class-schedules/{id}` | Member | Detail sesi |
+| POST, DELETE | `/member/class-schedules/{id}/booking` | Member | Booking / batal (mengembalikan jadwal terbaru) |
+| GET | `/member/bookings` | Member | Booking yang belum selesai |
+| GET, POST, GET, PUT, DELETE | `/admin/membership-plans[/{id}]` | Admin | CRUD paket |
+| GET | `/admin/members?status&membership_plan_id&search&page` | Admin | Daftar member + `meta` paginasi |
+| GET | `/admin/transactions?status&page` | Admin | Daftar transaksi |
+| POST | `/admin/transactions/{id}/approve` · `/reject` | Admin | Setujui / tolak (alasan wajib) |
+| GET, POST, GET, PUT, DELETE | `/admin/class-schedules[/{id}]` | Admin | Kelola jadwal |
+| PATCH | `/admin/class-schedules/{id}/status` | Admin | Ubah status sesi |
+| GET | `/admin/classes`, `/admin/instructors` | Admin | Pilihan form jadwal |
+| GET | `/admin/audit-logs?action&page` | Admin | Log aktivitas admin, 20 per halaman |
+
+Contoh respons error:
+
+```jsonc
+// 422
+{ "message": "Membership Anda tidak aktif pada tanggal sesi ini.", "errors": { "booking": ["Membership Anda tidak aktif pada tanggal sesi ini."] } }
+// 409
+{ "message": "Anda sudah membooking sesi ini." }
+// 401
+{ "message": "Unauthenticated." }
+// 429 (+ header Retry-After)
+{ "message": "Terlalu banyak permintaan. Coba lagi dalam beberapa saat." }
+```
 
 ## Harga membership
 
@@ -275,84 +436,19 @@ Prinsipnya *secure by default*: setiap izin diperiksa di server, dan pembatasan 
 - **Tidak ada upload file**, jadi belum ada risiko di area itu; bila bukti transfer ditambahkan, perlu validasi MIME, batas ukuran, dan penyimpanan privat.
 - Keamanan sistem ini **tidak sempurna**. Tes otomatis mencakup skenario di atas, tetapi belum ada uji penetrasi atau audit pihak ketiga.
 
-## UI/UX dan animasi
+## Aturan bisnis
 
-| Area | Perubahan |
+| Aturan | Hasil |
 |---|---|
-| Pemilihan paket (member) | Kartu paket dengan chip durasi, harga besar, dan deskripsi. Di formulir, kartu menjadi pilihan radio yang jelas (latar emas + centang), dengan efek tekan ringan |
-| Ringkasan dan feedback | Ringkasan pengajuan menampilkan paket, durasi, periode, metode bayar, dan **total bayar**; tombol kirim menyebut harga ("Kirim pengajuan · Rp500.000") atau meminta memilih paket dulu. Layar sukses menyebut paket dan nominal |
-| Status | Chip status di member app dan badge status di admin "berdenyut" sekali saat nilainya berubah (mis. setelah booking atau persetujuan), sehingga perubahan terlihat tanpa mengganggu |
-| Transisi | Halaman admin muncul dengan fade + geser 6px (220 ms); dialog, dropdown, dan select membesar halus dari titik asalnya; baris tabel dan kartu daftar muncul memudar bertahap; tombol mengecil sedikit saat ditekan |
-| State kosong dan error | Ikon dalam lingkaran, judul, penjelasan, dan aksi (mis. *Cari kelas* di beranda bila belum ada booking). Pesan error formulir muncul dengan animasi dan `role="alert"` |
-| Formulir admin | Pratinjau harga ("Tampil sebagai Rp500.000") dan petunjuk durasi ("1 = per datang, 30 = 1 bulan") |
-| Harga | Format seragam `Rp75.000` di kedua aplikasi; periode satu hari tampil sebagai satu tanggal |
-| Navigasi admin | Menu *Log Aktivitas* baru; padding konten lebih rapat di layar kecil |
-| Performa | Animasi hanya memakai `opacity`/`transform` (native driver di Android/iOS), durasi 140–260 ms, dan tidak pernah menghalangi sentuhan atau klik |
-| Kurangi gerakan | Admin web: aturan global `prefers-reduced-motion` mematikan semua animasi dan transisi. Member app: `AccessibilityInfo.isReduceMotionEnabled` (web: `prefers-reduced-motion`) membuat konten langsung tampil tanpa animasi |
-
-## Arsitektur dan struktur folder
-
-```text
-.
-├── api/                         Laravel 13 (REST /api/v1)
-│   ├── app/Enums                Status sebagai backed enum
-│   ├── app/Http/Controllers     Controller tipis (tanpa logika bisnis)
-│   ├── app/Http/Requests        Form Request untuk semua validasi
-│   ├── app/Http/Resources       API Resource untuk semua respons
-│   ├── app/Http/Middleware      EnsureRole (role:admin / role:member), SecurityHeaders
-│   ├── app/Services             Logika bisnis: booking, membership, transaksi, jadwal, member, katalog paket, audit
-│   ├── config/membership.php    Satu-satunya sumber harga dan durasi paket standar
-│   ├── config/security.php      Umur token per peran dan batas permintaan
-│   ├── config/cors.php          Origin frontend yang diizinkan
-│   ├── app/Casts/DateOnly.php   Kolom tanggal selalu Y-m-d
-│   ├── database/                Migrasi, factory, seeder data fiktif
-│   ├── docs/openapi.yaml        Kontrak API (OpenAPI 3.1)
-│   ├── lang/id                  Pesan validasi bahasa Indonesia
-│   └── tests/                   PHPUnit (Feature + Unit)
-├── admin-web/                   React + Vite + TypeScript strict
-│   └── src/
-│       ├── api/                 Fungsi endpoint bertipe
-│       ├── auth/                AuthProvider, guard RequireAdmin
-│       ├── components/          ui/ (Radix + Tailwind), brand/, layout/
-│       ├── domain/              Normalisasi status, progres peserta (dites)
-│       ├── features/            members, transactions, schedules, plans, audit, auth
-│       ├── hooks/               useApiQuery (abort + reload), useMutation (kunci submit)
-│       └── lib/                 http client, format, config, token storage
-├── member-app/                  Expo + expo-router + TypeScript strict
-│   ├── assets/                  Ikon, favicon, monogram, wordmark
-│   └── src/
-│       ├── app/                 Rute: login, (tabs)/…, schedules/[id], plans, apply
-│       ├── api/  auth/  hooks/  lib/
-│       ├── components/          Kartu paket/jadwal/membership, chip status, FadeIn, state views
-│       ├── domain/              Aturan booking, normalisasi status, label paket (dites)
-│       └── theme.ts             Tema Material 3 dengan palet brand
-└── docs/
-    ├── SETUP.md                 Panduan menjalankan, variabel lingkungan, skenario E2E
-    ├── screenshots/             Tangkapan layar README
-    └── brand/                   Palet warna
-```
-
-Prinsip yang dipakai:
-- Laravel mengikuti PSR-12 (dicek Pint): Form Request, API Resource, service class, dan middleware peran.
-- Frontend memakai TypeScript strict (tanpa `any`), komponen kecil dengan satu tanggung jawab, dan logika dipisah ke hooks/domain.
-- Nama kode dalam bahasa Inggris; teks antarmuka dalam bahasa Indonesia.
-
-## Spesifikasi teknis
-
-| Komponen | Versi (terpasang) |
-|---|---|
-| PHP / Composer | 8.4 / 2.9 |
-| Laravel framework / Sanctum | 13.43 / 4.x |
-| Database lokal | SQLite (`pdo_sqlite`) |
-| Node.js / npm | 24 LTS / 11 |
-| React (admin) / Vite / TypeScript | 19.3.1 / 8.3.8 / 6.0.3 |
-| Tailwind CSS / Radix UI / React Router | 4.3.5 / 1.8.1 (`radix-ui`) / 8.5.2 |
-| Ikon / notifikasi / font | lucide-react 1.77 / sonner 2.0 / Inter & Archivo (Fontsource) |
-| Expo SDK / React Native / React (member) | 58.0.26 / 0.88.1 / 19.3.0 |
-| expo-router / React Native Paper | 58.0.32 / 5.15.5 |
-| Pengujian | PHPUnit 12, Vitest 5.1, Testing Library |
-| Zona waktu bisnis | `Asia/Makassar` (WITA), dapat diubah lewat `APP_TIMEZONE` |
-| Format respons | `data` (+ `links`/`meta` untuk paginasi); tanggal `YYYY-MM-DD`; jam `HH:MM`; waktu ISO 8601 dengan offset; uang integer rupiah |
+| Booking hanya untuk sesi berstatus `scheduled` yang belum dimulai | Selain itu **422** (`errors.booking`) |
+| Member harus aktif pada **tanggal sesi** (`active` dan `start_date ≤ tanggal ≤ end_date`) | Bila tidak, **422** "Membership Anda tidak aktif pada tanggal sesi ini." |
+| Booking ganda pada sesi yang sama | **409** "Anda sudah membooking sesi ini." |
+| Kapasitas kelas | Hanya `min_participants`, **tanpa batas maksimum** (keputusan referensi). Karena itu status "penuh" tidak ada |
+| Pembatalan booking | Hanya sebelum sesi dimulai; booking bisa diulang (baris lama diaktifkan kembali) |
+| Pengajuan membership | Ditolak 422 bila masih ada pengajuan *pending* atau periode bertabrakan dengan membership aktif |
+| Persetujuan transaksi | 409 bila sudah diproses atau periode bertabrakan dengan membership aktif lain |
+| Validasi gagal / tanpa token / peran salah | **422** / **401** / **403** |
+| Batas permintaan | Login 5/menit per akun + IP dan 20/menit per IP; pengajuan dan booking 20/menit per member; endpoint lain 120/menit. Selebihnya **429** dengan header `Retry-After` |
 
 ## Skema database
 
@@ -456,116 +552,65 @@ Catatan desain skema:
 - **`transactions.amount`** menyimpan harga saat pengajuan, terpisah dari `membership_plans.price`.
 - **`audit_logs`** hanya ditambah; `actor_id` menjadi `NULL` bila user dihapus agar catatannya tetap ada.
 
-## Kontrak API
+## UI/UX dan animasi
 
-Dokumen lengkap: [`api/docs/openapi.yaml`](api/docs/openapi.yaml) (OpenAPI 3.1, 30 operasi).
+| Area | Perubahan |
+|---|---|
+| Pemilihan paket (member) | Kartu paket dengan chip durasi, harga besar, dan deskripsi. Di formulir, kartu menjadi pilihan radio yang jelas (latar emas + centang), dengan efek tekan ringan |
+| Ringkasan dan feedback | Ringkasan pengajuan menampilkan paket, durasi, periode, metode bayar, dan **total bayar**; tombol kirim menyebut harga ("Kirim pengajuan · Rp500.000") atau meminta memilih paket dulu. Layar sukses menyebut paket dan nominal |
+| Status | Chip status di member app dan badge status di admin "berdenyut" sekali saat nilainya berubah (mis. setelah booking atau persetujuan), sehingga perubahan terlihat tanpa mengganggu |
+| Transisi | Halaman admin muncul dengan fade + geser 6px (220 ms); dialog, dropdown, dan select membesar halus dari titik asalnya; baris tabel dan kartu daftar muncul memudar bertahap; tombol mengecil sedikit saat ditekan |
+| State kosong dan error | Ikon dalam lingkaran, judul, penjelasan, dan aksi (mis. *Cari kelas* di beranda bila belum ada booking). Pesan error formulir muncul dengan animasi dan `role="alert"` |
+| Formulir admin | Pratinjau harga ("Tampil sebagai Rp500.000") dan petunjuk durasi ("1 = per datang, 30 = 1 bulan") |
+| Harga | Format seragam `Rp75.000` di kedua aplikasi; periode satu hari tampil sebagai satu tanggal |
+| Navigasi admin | Menu *Log Aktivitas* baru; padding konten lebih rapat di layar kecil |
+| Performa | Animasi hanya memakai `opacity`/`transform` (native driver di Android/iOS), durasi 140–260 ms, dan tidak pernah menghalangi sentuhan atau klik |
+| Kurangi gerakan | Admin web: aturan global `prefers-reduced-motion` mematikan semua animasi dan transisi. Member app: `AccessibilityInfo.isReduceMotionEnabled` (web: `prefers-reduced-motion`) membuat konten langsung tampil tanpa animasi |
 
-| Metode | Endpoint | Akses | Keterangan |
-|---|---|---|---|
-| GET | `/health` | Publik | Cek server |
-| GET | `/membership-plans` | Publik | Paket aktif |
-| POST | `/login` | Publik | Token bearer + `expires_at` (5/menit per akun) |
-| POST | `/logout` | Login | Cabut token (204) |
-| GET | `/me` | Login | Profil + ringkasan membership (`status`, `is_active`, `has_pending_application`, paket, periode) |
-| GET, POST | `/member/memberships` | Member | Riwayat / ajukan (201) |
-| GET | `/member/class-schedules?from&to` | Member | Jadwal + `is_booked` |
-| GET | `/member/class-schedules/{id}` | Member | Detail sesi |
-| POST, DELETE | `/member/class-schedules/{id}/booking` | Member | Booking / batal (mengembalikan jadwal terbaru) |
-| GET | `/member/bookings` | Member | Booking yang belum selesai |
-| GET, POST, GET, PUT, DELETE | `/admin/membership-plans[/{id}]` | Admin | CRUD paket |
-| GET | `/admin/members?status&membership_plan_id&search&page` | Admin | Daftar member + `meta` paginasi |
-| GET | `/admin/transactions?status&page` | Admin | Daftar transaksi |
-| POST | `/admin/transactions/{id}/approve` · `/reject` | Admin | Setujui / tolak (alasan wajib) |
-| GET, POST, GET, PUT, DELETE | `/admin/class-schedules[/{id}]` | Admin | Kelola jadwal |
-| PATCH | `/admin/class-schedules/{id}/status` | Admin | Ubah status sesi |
-| GET | `/admin/classes`, `/admin/instructors` | Admin | Pilihan form jadwal |
-| GET | `/admin/audit-logs?action&page` | Admin | Log aktivitas admin, 20 per halaman |
+## Identitas visual
 
-Contoh respons error:
+Palet dan tipografi mengikuti brand board **Revira Fitness Center**.
 
-```jsonc
-// 422
-{ "message": "Membership Anda tidak aktif pada tanggal sesi ini.", "errors": { "booking": ["Membership Anda tidak aktif pada tanggal sesi ini."] } }
-// 409
-{ "message": "Anda sudah membooking sesi ini." }
-// 401
-{ "message": "Unauthenticated." }
-// 429 (+ header Retry-After)
-{ "message": "Terlalu banyak permintaan. Coba lagi dalam beberapa saat." }
-```
+<p align="center">
+  <img src="docs/brand/palette.png" width="640" alt="Palet warna: Gold #D9BF63, Teal #4C969B, Black #000000" />
+</p>
 
-## Instalasi dan menjalankan
+| Elemen | Penerapan |
+|---|---|
+| **Gold `#D9BF63`** | Tombol utama admin (teks hitam di atas emas), nama paket di kartu membership, menu aktif sidebar, warna utama tema gelap |
+| **Teal `#4C969B`** | Tulisan "FITNESS CENTER", status *Terjadwal*/info, cincin fokus keyboard |
+| **Black `#000000`** | Sidebar admin, monogram, kartu membership, tombol utama member di tema terang (teks emas) |
+| Monogram "R" | Ikon aplikasi, favicon, logo di login dan sidebar ([`member-app/assets/brand/mark.png`](member-app/assets/brand/mark.png)) |
+| Wordmark | "REVIRA" memakai Archivo (lebar 125%, tebal 800); "FITNESS CENTER" teal dengan jarak huruf lebar |
 
-Panduan lengkap beserta daftar variabel lingkungan dan skenario uji ada di **[docs/SETUP.md](docs/SETUP.md)**. Ringkasnya:
+Catatan aksesibilitas warna: emas dan teal asli kontrasnya rendah sebagai teks di atas putih (sekitar 1,8:1 dan 3,4:1). Karena itu:
+- Di tema terang, emas dipakai sebagai latar atau di atas hitam, dan teks sekunder memakai teal yang digelapkan (`#2F6E73`, sekitar 5,9:1).
+- Di tema gelap, emas menjadi warna utama.
+- Warna status (hijau, kuning, merah) tetap semantik supaya maknanya tidak tertukar.
 
-**1. API**
+> **Logo ilustrasi** (siluet atlet pada brand board) tidak tersedia sebagai file, sehingga tidak disertakan dan tidak digambar ulang. Monogram dan wordmark di aplikasi dibuat ulang dari font Archivo mengikuti brand board. Bila file logo asli tersedia, ganti aset di [`member-app/assets/brand/`](member-app/assets/brand) dan komponen [`BrandMark`](admin-web/src/components/brand/BrandMark.tsx)/[`BrandWordmark`](admin-web/src/components/brand/BrandWordmark.tsx).
 
-```bash
-cd api
-composer install
-```
+## Troubleshooting
 
-Buat `api/.env` (minimal `APP_ENV`, `APP_KEY`, `SEED_PASSWORD`; lihat SETUP.md), lalu:
-
-```bash
-php artisan key:generate
-touch database/database.sqlite
-php artisan migrate --seed
-php artisan serve
-```
-
-**2. Admin web**
-
-```bash
-cd admin-web
-npm install
-```
-
-Buat `admin-web/.env.local` berisi `VITE_API_URL`, lalu:
-
-```bash
-npm run dev
-```
-
-**3. Member app**
-
-```bash
-cd member-app
-npm install
-```
-
-Buat `member-app/.env` berisi `EXPO_PUBLIC_API_URL`, lalu:
-
-```bash
-npx expo start
-```
-
-Memperbarui basis data lama cukup dengan `php artisan migrate` (harga paket ikut diperbarui tanpa menghapus data).
-
-Pindai QR code dengan Expo Go (HP dan komputer satu jaringan; isi URL dengan IP komputer), atau tekan `w` untuk versi web.
-
-**Variabel lingkungan (nama saja):**
-- API: `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_TIMEZONE`, `APP_LOCALE`, `DB_CONNECTION`, `DB_DATABASE`, `SEED_PASSWORD`, `CACHE_STORE`, `SESSION_DRIVER`, `QUEUE_CONNECTION`, `LOG_CHANNEL`, `LOG_LEVEL`, `CORS_ALLOWED_ORIGINS`, `ADMIN_TOKEN_TTL_MINUTES`, `MEMBER_TOKEN_TTL_MINUTES`, `SANCTUM_TOKEN_PREFIX`, `SANCTUM_EXPIRATION`.
-- Admin web: `VITE_API_URL`.
-- Member app: `EXPO_PUBLIC_API_URL`.
-
-Akun seeder: `admin@revira.test` serta `budi`, `sari`, `dewi`, `rudi`, `putri`, `agus`, dan `nina` `@revira.test`. Kata sandinya adalah nilai `SEED_PASSWORD` yang Anda isi sendiri; tidak ada kata sandi yang ditulis di kode atau dokumentasi.
-
-## Pengujian
-
-```bash
-cd api && php artisan test && ./vendor/bin/pint --test
-cd admin-web && npm run typecheck && npm run lint && npm test && npm run build
-cd member-app && npm run typecheck && npm run lint && npm test
-```
-
-| Bagian | Cakupan | Hasil terakhir |
-|---|---|---|
-| API (PHPUnit) | Auth (login/me/logout/401/403), paket (CRUD, 404, 409), pengajuan (201, pending ganda, overlap, validasi 422), approval (periode inklusif, geser tanggal lampau, 409), booking (200, 401, 404, 409, 422 untuk sesi batal/dimulai/membership tidak aktif, batal dan booking ulang), daftar member (status, filter paket, pencarian, paginasi), jadwal admin, alur end-to-end, seeder (4 paket dan harganya), unit resolver status, status tampilan sesi, **keamanan** (rate limit login 429, pesan login seragam, umur token per peran dan kedaluwarsa, pembersihan token, header keamanan, CORS, IDOR booking/riwayat, member tanpa nama peserta lain, admin↔member 403, mass assignment, sanitasi HTML, nama paket unik, tanpa hash kata sandi di respons), **audit log** (approve/tolak/ubah harga/ubah status sesi/login admin, tanpa rahasia, tidak tercatat bila aksi gagal, filter, append-only), **katalog harga** (migrasi paket lama tanpa mengubah transaksi dan paket custom, idempoten, urutan dan harga endpoint publik) | **109 tes lulus (476 assertion)**, Pint lulus |
-| Admin web (Vitest) | Normalisasi status membership/jadwal/transaksi, aksi jadwal, progres peserta, klien HTTP dan error, format, `useMutation` (kunci submit ganda), `useApiQuery` (menunggu auth, membatalkan request lama, reload, 401), format `Rp75.000`/durasi/periode satu hari, ringkasan log aktivitas | **46 tes lulus**; `tsc` strict, ESLint (0 peringatan), dan build produksi lulus |
-| Member app (Vitest) | Aturan booking (aktif pada tanggal sesi, perpanjangan, sesi batal/dimulai, batal booking), normalisasi status, saran tanggal mulai, format tanggal/rupiah (harga paket baru, periode satu hari), label durasi dan label pembaca layar paket, helper HTTP | **33 tes lulus**; `tsc` strict dan ESLint (termasuk aturan React Compiler) lulus |
+| Gejala | Penyebab dan solusi |
+|---|---|
+| Seeder berhenti dengan pesan "tidak boleh dijalankan di production" | `APP_ENV` kosong dianggap `production`. Isi `APP_ENV=local` di `api/.env` |
+| Seeder berhenti dengan pesan "SEED_PASSWORD belum diisi" | Isi `SEED_PASSWORD` di `api/.env`, lalu jalankan ulang `php artisan db:seed` |
+| `php artisan migrate` melaporkan file database SQLite tidak ada | Buat filenya dengan `touch database/database.sqlite` (atau jawab *yes* saat Laravel menawarkan membuatnya), atau atur `DB_DATABASE` |
+| Admin web atau member app menampilkan "Alamat API belum diatur" | `VITE_API_URL` / `EXPO_PUBLIC_API_URL` kosong. Isi, lalu **hentikan dan jalankan ulang** dev server (nilai env dibaca saat start) |
+| Browser menolak request karena CORS | Origin frontend tidak ada di `CORS_ALLOWED_ORIGINS`. Bawaannya hanya `localhost`/`127.0.0.1` port 5173 dan 8081; tambahkan origin lain (dipisah koma) bila memakai port atau domain berbeda |
+| Expo Go di HP tidak bisa terhubung ke API | `localhost` di HP menunjuk ke HP itu sendiri. Pakai IP komputer di `EXPO_PUBLIC_API_URL`, jalankan API dengan `--host=0.0.0.0`, dan pastikan HP satu jaringan Wi-Fi |
+| Tiba-tiba kembali ke layar login | Token kedaluwarsa (admin 8 jam, member 30 hari) atau sudah logout. Masuk kembali |
+| Login ditolak "Terlalu banyak permintaan" (429) | Lebih dari 5 percobaan per menit untuk akun yang sama. Tunggu sesuai header `Retry-After` |
+| Harga paket masih harga lama | Basis data dibuat sebelum pembaruan harga. Jalankan `php artisan migrate` |
+| `composer setup` atau `composer dev` gagal | Keduanya script bawaan scaffold Laravel yang butuh `.env.example` dan `package.json` di `api/`, dan keduanya tidak ada di proyek ini. Ikuti langkah manual di atas |
 
 ## Hasil analisis
+
+Proses pengembangan, keputusan desain, riset UI, dan temuan uji.
+
+<details>
+<summary>Buka hasil analisis</summary>
 
 ### 1. Analisis repositori referensi
 
@@ -657,7 +702,9 @@ Kasus negatif pada API live:
 
 Rincian penerapan dan risiko yang tersisa ada di bagian [Keamanan](#keamanan). Di sisi klien, tombol dikunci selama request dan request lama dibatalkan. Token admin disimpan di `localStorage`; token member di `expo-secure-store` (native) dan `localStorage` (web).
 
-## Keterbatasan dan rekomendasi
+</details>
+
+## Keterbatasan dan tindak lanjut
 
 **Belum diverifikasi**
 - Aplikasi member belum diuji di HP fisik lewat Expo Go maupun build native Android/iOS. Pengujian visual dilakukan pada versi web Expo dengan emulasi 360dp dan 412dp.
