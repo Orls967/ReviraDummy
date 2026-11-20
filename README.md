@@ -19,11 +19,18 @@ Monorepo aplikasi gym Revira Fitness Center, terdiri dari tiga bagian yang salin
 | [`member-app/`](member-app) | Expo SDK 58, React Native 0.88, expo-router, React Native Paper (Material 3) | Member gym (Expo Go, Android, iOS, web) |
 
 Alur utama yang sudah diuji ujung ke ujung:
-1. Member mengajukan membership.
-2. Admin menyetujui.
+1. Member memilih paket (durasi dan harga terlihat jelas) lalu mengajukan membership.
+2. Admin menyetujui; aksinya tercatat di Log Aktivitas.
 3. Periode aktif muncul di daftar member.
 4. Member membooking kelas.
 5. Counter peserta bertambah dan admin melihat pesertanya.
+
+| Paket | Durasi | Harga |
+|---|---|---|
+| Per Datang | 1 hari | **Rp75.000** |
+| 1 Bulan | 30 hari | **Rp500.000** |
+| 3 Bulan | 90 hari | **Rp1.050.000** |
+| 1 Tahun | 365 hari | **Rp3.075.000** |
 
 ## Daftar isi
 
@@ -34,6 +41,9 @@ Alur utama yang sudah diuji ujung ke ujung:
   - [Mode gelap dan responsif](#mode-gelap-dan-responsif)
 - [Fitur](#fitur)
 - [Aturan bisnis](#aturan-bisnis)
+- [Harga membership](#harga-membership)
+- [Keamanan](#keamanan)
+- [UI/UX dan animasi](#uiux-dan-animasi)
 - [Arsitektur dan struktur folder](#arsitektur-dan-struktur-folder)
 - [Spesifikasi teknis](#spesifikasi-teknis)
 - [Skema database](#skema-database)
@@ -81,17 +91,19 @@ Semua tangkapan layar diambil dari aplikasi yang berjalan dengan **API Laravel a
 | ![Login admin](docs/screenshots/admin-01-login.jpg) | ![Daftar member](docs/screenshots/admin-02-members.jpg) |
 | **Login admin.** Logo dan wordmark brand, validasi per kolom, tombol terkunci selama proses. Akun non-admin ditolak dengan pesan jelas. | **Daftar member.** Status terkini (Aktif, Menunggu verifikasi, Akan aktif, Kedaluwarsa, Belum ada), paket, periode, telepon, dan tanggal daftar. Paginasi dari `meta` API. |
 | ![Filter member](docs/screenshots/admin-03-members-filter.jpg) | ![Transaksi menunggu](docs/screenshots/admin-04-transactions.jpg) |
-| **Filter member.** Status dan paket (`membership_plan_id`) disimpan di URL. Pencarian nama, email, atau telepon memakai debounce. | **Verifikasi transaksi.** Tab Menunggu/Disetujui/Ditolak/Semua, menampilkan nominal, metode bayar, jenis pengajuan (pendaftaran atau perpanjangan), dan rencana mulai. |
+| **Filter member.** Status dan paket (`membership_plan_id`) disimpan di URL. Pencarian nama, email, atau telepon memakai debounce. | **Verifikasi transaksi.** Tab Menunggu/Disetujui/Ditolak/Semua, menampilkan nominal, metode bayar, jenis pengajuan (pendaftaran atau perpanjangan), dan rencana mulai. Pengajuan lama yang nominalnya berbeda dari harga paket saat ini diberi tanda *Harga paket kini …*. |
 | ![Setujui transaksi](docs/screenshots/admin-05-transaction-approve.jpg) | ![Tolak transaksi](docs/screenshots/admin-06-transaction-reject.jpg) |
-| **Konfirmasi setujui.** Dialog tidak bisa ditutup selama request berjalan; toast menampilkan periode hasil persetujuan. | **Tolak dengan alasan.** Alasan wajib (maks. 255 karakter) dan terlihat oleh member. |
+| **Konfirmasi setujui.** Dialog muncul dengan animasi singkat dan tidak bisa ditutup selama request berjalan; toast menampilkan periode hasil persetujuan. | **Tolak dengan alasan.** Alasan wajib (maks. 255 karakter, tag HTML dibuang di server) dan terlihat oleh member. |
 | ![Jadwal kelas](docs/screenshots/admin-07-schedules.jpg) | ![Menu aksi sesi](docs/screenshots/admin-08-schedule-actions.jpg) |
 | **Jadwal kelas per minggu.** Status tampilan (Terjadwal/Berlangsung/Selesai/Dibatalkan) dan progres menuju minimum peserta. Dimuat ulang otomatis tiap 30 detik. | **Aksi per sesi.** Lihat peserta, ubah, tandai berlangsung/selesai, batalkan, hapus. Aksi yang tidak diizinkan otomatis nonaktif. |
 | ![Peserta sesi](docs/screenshots/admin-09-schedule-participants.jpg) | ![Form jadwal](docs/screenshots/admin-10-schedule-form.jpg) |
 | **Daftar peserta.** Member yang membooking, telepon, dan waktu booking; counter sama dengan aplikasi member. | **Tambah/ubah jadwal.** Instruktur bawaan kelas terisi otomatis. API menolak jam yang sudah lewat dan instruktur yang bentrok. |
 | ![Batalkan sesi](docs/screenshots/admin-11-schedule-cancel.jpg) | ![Paket membership](docs/screenshots/admin-12-plans.jpg) |
-| **Batalkan sesi.** Alasan wajib dan ditampilkan ke member yang sudah booking. | **Paket membership.** CRUD paket (nama, durasi hari, harga rupiah, deskripsi, aktif/nonaktif). |
-| ![Form paket](docs/screenshots/admin-13-plan-form.jpg) | ![Mode gelap admin](docs/screenshots/admin-14-transactions-dark.jpg) |
-| **Form paket.** Paket yang sudah dipakai tidak bisa dihapus (409) dan cukup dinonaktifkan. | **Mode gelap.** Mengikuti preferensi sistem; tab *Semua* menampilkan transaksi disetujui, ditolak (beserta alasan), dan perpanjangan. |
+| **Batalkan sesi.** Alasan wajib dan ditampilkan ke member yang sudah booking. | **Paket membership.** Per Datang Rp75.000, 1 Bulan Rp500.000, 3 Bulan Rp1.050.000, 1 Tahun Rp3.075.000, dibaca dari API. CRUD paket (nama unik, durasi hari, harga rupiah, deskripsi, aktif/nonaktif). |
+| ![Form paket](docs/screenshots/admin-13-plan-form.jpg) | ![Log aktivitas](docs/screenshots/admin-15-activity.jpg) |
+| **Form paket.** Pratinjau "Tampil sebagai Rp500.000" di bawah kolom harga. Paket yang sudah dipakai tidak bisa dihapus (409) dan cukup dinonaktifkan. | **Log aktivitas.** Jejak aksi admin (setujui/tolak transaksi, ubah harga paket, ubah jadwal, login admin) dengan filter jenis aksi. Catatan tidak bisa diubah atau dihapus. |
+| ![Mode gelap admin](docs/screenshots/admin-14-transactions-dark.jpg) | |
+| **Mode gelap.** Mengikuti preferensi sistem; tab *Semua* menampilkan transaksi disetujui, ditolak (beserta alasan), dan perpanjangan. | |
 
 ### Member App
 
@@ -122,15 +134,15 @@ Semua tangkapan layar diambil dari aplikasi yang berjalan dengan **API Laravel a
   </tr>
   <tr>
     <td><img src="docs/screenshots/member-09-plans.jpg" alt="Paket" /></td>
-    <td><img src="docs/screenshots/member-10-apply.jpg" alt="Ajukan membership" /></td>
+    <td><img src="docs/screenshots/member-10-apply.jpg" alt="Pilih paket" /></td>
+    <td><img src="docs/screenshots/member-14-apply-summary.jpg" alt="Ringkasan pengajuan" /></td>
     <td><img src="docs/screenshots/member-11-apply-success.jpg" alt="Pengajuan terkirim" /></td>
-    <td><img src="docs/screenshots/member-12-home-412-pending.jpg" alt="Beranda 412dp" /></td>
   </tr>
   <tr>
-    <td><b>Paket.</b> Daftar paket aktif dari endpoint publik.</td>
-    <td><b>Ajukan membership.</b> Pilih paket, tanggal mulai (perpanjangan otomatis disarankan sehari setelah periode berjalan), metode bayar, ringkasan periode.</td>
-    <td><b>Pengajuan terkirim.</b> Status beranda berubah setelah admin menyetujui.</td>
-    <td><b>Lebar 412dp.</b> Perpanjangan yang menunggu verifikasi menyembunyikan tombol "Perpanjang".</td>
+    <td><b>Paket.</b> Kartu per paket: nama, chip durasi ("1 hari kunjungan", "30 hari"), harga besar (Rp75.000 dst.), dan deskripsi. Kartu muncul bertahap.</td>
+    <td><b>Pilih paket.</b> Kartu berperan sebagai radio (terbaca pembaca layar sebagai "Per Datang, 1 hari kunjungan, Rp75.000"); kartu terpilih berlatar emas dengan tanda centang. Tombol kirim ikut menampilkan harga.</td>
+    <td><b>Ringkasan pengajuan.</b> Paket dan durasi, perkiraan periode (paket satu hari tampil sebagai satu tanggal), metode bayar, dan total bayar. Ringkasan berganti dengan animasi halus saat pilihan berubah.</td>
+    <td><b>Pengajuan terkirim.</b> Menyebut paket dan nominal yang diajukan. Status beranda berubah setelah admin menyetujui.</td>
   </tr>
 </table>
 
@@ -139,10 +151,12 @@ Semua tangkapan layar diambil dari aplikasi yang berjalan dengan **API Laravel a
 <table>
   <tr>
     <td width="25%"><img src="docs/screenshots/member-13-schedules-dark.jpg" alt="Jadwal mode gelap" /></td>
+    <td width="25%"><img src="docs/screenshots/member-12-home-412-pending.jpg" alt="Beranda 412dp" /><br /><b>Lebar 412dp.</b> Perpanjangan yang menunggu verifikasi menyembunyikan tombol "Perpanjang".</td>
     <td>
       <ul>
         <li><b>Member app:</b> tema terang/gelap otomatis mengikuti sistem. Tata letak diuji di lebar 360dp dan 412dp; konten dibatasi 560dp agar nyaman di tablet dan web. Target sentuh minimal 48dp.</li>
         <li><b>Admin web:</b> desktop-first dengan sidebar hitam; tabel bergulir di dalam kartunya sendiri bila layar sempit; mode gelap mengikuti sistem.</li>
+        <li><b>Gerak:</b> transisi halaman, dialog, menu, kartu, dan perubahan status dibuat singkat (140–260 ms) dan dimatikan otomatis bila sistem meminta <i>kurangi gerakan</i>.</li>
         <li><b>Aksesibilitas:</b> label terhubung ke input (<code>htmlFor</code>/<code>aria-describedby</code>), pesan error dengan <code>role="alert"</code>, tautan "Lewati ke konten utama", fokus keyboard terlihat, dialog dari Radix (focus trap dan tombol Esc), label aksesibilitas pada kartu dan ikon di aplikasi member.</li>
       </ul>
     </td>
@@ -157,11 +171,12 @@ Semua tangkapan layar diambil dari aplikasi yang berjalan dengan **API Laravel a
 - Login, `/me`, dan logout dengan bearer token Sanctum.
 - Dua peran: admin dan member.
 - Admin web menolak akun member, dan aplikasi member menolak akun admin.
-- Token kedaluwarsa (401) otomatis mengakhiri sesi dan kembali ke login.
+- Token punya masa berlaku (admin 8 jam, member 30 hari). Token kedaluwarsa (401) otomatis mengakhiri sesi dan kembali ke login.
 
 **Paket membership**
-- Daftar paket aktif bersifat publik.
-- CRUD khusus admin. Paket yang sudah dipakai tidak bisa dihapus, cukup dinonaktifkan.
+- Daftar paket aktif bersifat publik, diurutkan dari yang termurah.
+- CRUD khusus admin, nama paket unik. Paket yang sudah dipakai tidak bisa dihapus, cukup dinonaktifkan.
+- Harga standar: lihat [Harga membership](#harga-membership).
 
 **Membership**
 - Member mengajukan dengan memilih paket, tanggal mulai, dan metode bayar (`transfer`/`on_the_spot`).
@@ -180,6 +195,10 @@ Semua tangkapan layar diambil dari aplikasi yang berjalan dengan **API Laravel a
 - Ubah status (berlangsung/selesai/batal dengan alasan).
 - Hapus sesi yang belum pernah dibooking.
 - Daftar peserta.
+
+**Log aktivitas (admin)**
+- Setiap aksi admin yang mengubah data penting tercatat: buat/ubah/hapus paket (dengan nilai lama → baru), setujui/tolak transaksi, buat/ubah/ubah status/hapus sesi, dan login admin.
+- Halaman *Log Aktivitas* dengan filter jenis aksi dan paginasi 20 baris.
 
 **Booking (member)**
 - Jadwal 7 hari, detail sesi, booking dan pembatalan, Booking Saya.
@@ -203,7 +222,73 @@ Semua tangkapan layar diambil dari aplikasi yang berjalan dengan **API Laravel a
 | Pengajuan membership | Ditolak 422 bila masih ada pengajuan *pending* atau periode bertabrakan dengan membership aktif |
 | Persetujuan transaksi | 409 bila sudah diproses atau periode bertabrakan dengan membership aktif lain |
 | Validasi gagal / tanpa token / peran salah | **422** / **401** / **403** |
-| Login dan pengajuan | Dibatasi 5 percobaan/menit (login) dan 10/menit (pengajuan) |
+| Batas permintaan | Login 5/menit per akun + IP dan 20/menit per IP; pengajuan dan booking 20/menit per member; endpoint lain 120/menit. Selebihnya **429** dengan header `Retry-After` |
+
+## Harga membership
+
+| Paket | Durasi | Harga | Keterangan |
+|---|---|---|---|
+| Per Datang | 1 hari | Rp75.000 | Akses gym dan kelas untuk satu hari kunjungan |
+| 1 Bulan | 30 hari | Rp500.000 | Akses gym dan semua kelas selama 30 hari |
+| 3 Bulan | 90 hari | Rp1.050.000 | Akses gym dan semua kelas selama 90 hari |
+| 1 Tahun | 365 hari | Rp3.075.000 | Akses gym dan semua kelas selama satu tahun |
+
+**Satu sumber harga.** Harga hanya ditulis di [`api/config/membership.php`](api/config/membership.php). Seeder (dan migrasi untuk basis data lama) menyalinnya ke tabel `membership_plans`. Setelah itu:
+- API mengirim `price` dan `duration_days` dari tabel tersebut.
+- Admin web dan member app hanya menampilkan nilai dari API. Tidak ada harga yang di-hardcode di frontend.
+- Format tampilan sama di kedua aplikasi: `Rp75.000` (tanpa spasi dan tanpa desimal), lewat satu fungsi `formatRupiah` per aplikasi yang dites.
+- Admin bisa mengubah harga dari menu Paket Membership; setiap perubahan tercatat di Log Aktivitas dengan nilai lama dan baru.
+
+**Harga tidak dihitung ulang.** Nominal transaksi dicatat saat member mengajukan dan tidak berubah bila harga paket diubah kemudian. Pengajuan lama yang masih menunggu dan nominalnya berbeda dari harga paket saat ini diberi tanda *Harga paket kini …* di halaman Transaksi, sehingga admin bisa memutuskan saat verifikasi pembayaran.
+
+**Instalasi lama.** `php artisan migrate` memperbarui paket Bulanan/Triwulan/Tahunan menjadi 1 Bulan/3 Bulan/1 Tahun dengan harga baru dan menambahkan Per Datang, tanpa menghapus data. Lihat [docs/SETUP.md](docs/SETUP.md#memperbarui-instalasi-lama).
+
+## Keamanan
+
+Prinsipnya *secure by default*: setiap izin diperiksa di server, dan pembatasan di UI hanya untuk kenyamanan.
+
+| Area | Penerapan |
+|---|---|
+| Autentikasi | Bearer token Sanctum; hanya hash SHA-256 token yang disimpan di basis data. Token berawalan `revira_` (mudah dikenali pemindai rahasia) dan punya masa berlaku per peran: admin 8 jam, member 30 hari. Token kedaluwarsa dihapus saat user login lagi; logout mencabut token yang dipakai |
+| Kata sandi | Hash bcrypt (cost 12) lewat cast `hashed`, di-rehash otomatis bila cost berubah. Pesan gagal login sama untuk email tak terdaftar dan kata sandi salah, dan hash tetap dihitung untuk email tak terdaftar supaya keberadaan akun tidak bisa ditebak dari waktu respons |
+| Otorisasi (least privilege) | Dua lapis: middleware `role:admin`/`role:member` pada grup route, dan `authorize()` di setiap Form Request admin/member (kelas dasar `AdminRequest`/`MemberRequest`). Admin tidak bisa memakai endpoint member, dan sebaliknya |
+| IDOR | Data member selalu diambil dari user pada token (`$request->user()`), tidak pernah dari ID kiriman klien. Membatalkan booking orang lain menghasilkan 404, riwayat membership dan booking hanya milik sendiri, dan detail jadwal untuk member hanya berisi jumlah peserta, bukan nama |
+| Mass assignment | Model memakai `$fillable`; service hanya menerima `validated()`. Kolom seperti `status`, `amount`, `user_id`, `role`, `code`, dan `id` yang dikirim klien diabaikan (ada tesnya) |
+| Validasi dan sanitasi | Semua input lewat Form Request dengan batas panjang, enum, dan tanggal. Teks bebas (alasan tolak, alasan batal, nama dan deskripsi paket) dibuang tag HTML-nya di server, dan frontend tetap meng-escape keluaran (React) |
+| SQL injection | Eloquent/Query Builder dengan parameter terikat; pencarian `LIKE` meng-escape wildcard |
+| CSRF | API stateless dengan bearer token, tanpa cookie sesi, sehingga tidak rentan CSRF. CORS hanya mengizinkan origin di `CORS_ALLOWED_ORIGINS`, tanpa credentials |
+| Rate limit | Login per akun + IP dan per IP, pengajuan/booking per member, dan semua endpoint lain per user/IP. Lihat [`config/security.php`](api/config/security.php) |
+| Header respons | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Content-Security-Policy: default-src 'none'`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, `Cache-Control: no-store, private` (data pribadi tidak di-cache), dan HSTS bila diakses lewat HTTPS |
+| Integritas data | Foreign key `restrict` (riwayat tidak bisa terhapus berantai), UNIQUE booking per sesi dan member, UNIQUE kode paket (nama paket unik lewat validasi), transaksi database dengan `lockForUpdate` untuk approval dan booking. Aksi admin dan catatan auditnya disimpan dalam satu transaksi |
+| Audit log | Tabel `audit_logs` append-only (model menolak update/delete): pelaku, aksi, objek, detail, IP, dan waktu. Kunci rahasia (`password`, `token`, dll.) disaring sebelum disimpan, dan IP tidak dikirim ke frontend |
+| Error | Respons error hanya berisi pesan dan kesalahan per kolom. Detail internal hanya muncul bila `APP_DEBUG=true`, yang wajib `false` di server |
+| Rahasia | Tidak ada kredensial, token, atau `.env` di repositori. Kata sandi seeder dibaca dari `SEED_PASSWORD`; seeder menolak berjalan bila kosong atau di `production` |
+| Data pribadi | Yang disimpan hanya nama, email, telepon, dan riwayat membership. Tidak ada data kartu atau rekening; pembayaran diverifikasi manual oleh admin |
+
+**Risiko yang masih tersisa** (butuh perubahan infrastruktur atau keputusan bisnis):
+- **Token di `localStorage` (admin web dan member app versi web).** Bila suatu saat ada celah XSS, token bisa dicuri. Mitigasi saat ini: masa berlaku token (admin 8 jam), tidak ada HTML dari pengguna yang dirender, dan teks dibersihkan di server. Perbaikan tuntas: autentikasi SPA berbasis cookie `HttpOnly` + CSRF Sanctum dengan domain yang sama, serta Content Security Policy di hosting frontend.
+- **Tidak ada HTTPS di lingkungan lokal.** Saat di-hosting, API dan frontend wajib di belakang TLS; HSTS otomatis aktif bila request lewat HTTPS. Bila API di belakang reverse proxy, konfigurasi *trusted proxies* agar IP untuk rate limit dan audit log benar.
+- **Rate limit memakai cache aplikasi.** Bawaannya tabel `cache` di SQLite; pada beberapa server sekaligus perlu cache bersama (Redis) agar batasnya konsisten.
+- **Belum ada MFA, kebijakan ganti kata sandi, atau penguncian akun permanen** untuk admin. Rate limit hanya memperlambat tebakan.
+- **Audit log bisa dihapus lewat akses langsung ke basis data.** Untuk jejak yang benar-benar tahan ubah, kirim log ke penyimpanan terpisah (mis. log server terpusat).
+- **Pembersihan token kedaluwarsa** baru terjadi saat user login lagi. Di server, jadwalkan `php artisan sanctum:prune-expired` lewat scheduler/cron.
+- **Tidak ada upload file**, jadi belum ada risiko di area itu; bila bukti transfer ditambahkan, perlu validasi MIME, batas ukuran, dan penyimpanan privat.
+- Keamanan sistem ini **tidak sempurna**. Tes otomatis mencakup skenario di atas, tetapi belum ada uji penetrasi atau audit pihak ketiga.
+
+## UI/UX dan animasi
+
+| Area | Perubahan |
+|---|---|
+| Pemilihan paket (member) | Kartu paket dengan chip durasi, harga besar, dan deskripsi. Di formulir, kartu menjadi pilihan radio yang jelas (latar emas + centang), dengan efek tekan ringan |
+| Ringkasan dan feedback | Ringkasan pengajuan menampilkan paket, durasi, periode, metode bayar, dan **total bayar**; tombol kirim menyebut harga ("Kirim pengajuan · Rp500.000") atau meminta memilih paket dulu. Layar sukses menyebut paket dan nominal |
+| Status | Chip status di member app dan badge status di admin "berdenyut" sekali saat nilainya berubah (mis. setelah booking atau persetujuan), sehingga perubahan terlihat tanpa mengganggu |
+| Transisi | Halaman admin muncul dengan fade + geser 6px (220 ms); dialog, dropdown, dan select membesar halus dari titik asalnya; baris tabel dan kartu daftar muncul memudar bertahap; tombol mengecil sedikit saat ditekan |
+| State kosong dan error | Ikon dalam lingkaran, judul, penjelasan, dan aksi (mis. *Cari kelas* di beranda bila belum ada booking). Pesan error formulir muncul dengan animasi dan `role="alert"` |
+| Formulir admin | Pratinjau harga ("Tampil sebagai Rp500.000") dan petunjuk durasi ("1 = per datang, 30 = 1 bulan") |
+| Harga | Format seragam `Rp75.000` di kedua aplikasi; periode satu hari tampil sebagai satu tanggal |
+| Navigasi admin | Menu *Log Aktivitas* baru; padding konten lebih rapat di layar kecil |
+| Performa | Animasi hanya memakai `opacity`/`transform` (native driver di Android/iOS), durasi 140–260 ms, dan tidak pernah menghalangi sentuhan atau klik |
+| Kurangi gerakan | Admin web: aturan global `prefers-reduced-motion` mematikan semua animasi dan transisi. Member app: `AccessibilityInfo.isReduceMotionEnabled` (web: `prefers-reduced-motion`) membuat konten langsung tampil tanpa animasi |
 
 ## Arsitektur dan struktur folder
 
@@ -214,8 +299,11 @@ Semua tangkapan layar diambil dari aplikasi yang berjalan dengan **API Laravel a
 │   ├── app/Http/Controllers     Controller tipis (tanpa logika bisnis)
 │   ├── app/Http/Requests        Form Request untuk semua validasi
 │   ├── app/Http/Resources       API Resource untuk semua respons
-│   ├── app/Http/Middleware      EnsureRole (role:admin / role:member)
-│   ├── app/Services             Logika bisnis: booking, membership, transaksi, jadwal, member
+│   ├── app/Http/Middleware      EnsureRole (role:admin / role:member), SecurityHeaders
+│   ├── app/Services             Logika bisnis: booking, membership, transaksi, jadwal, member, katalog paket, audit
+│   ├── config/membership.php    Satu-satunya sumber harga dan durasi paket standar
+│   ├── config/security.php      Umur token per peran dan batas permintaan
+│   ├── config/cors.php          Origin frontend yang diizinkan
 │   ├── app/Casts/DateOnly.php   Kolom tanggal selalu Y-m-d
 │   ├── database/                Migrasi, factory, seeder data fiktif
 │   ├── docs/openapi.yaml        Kontrak API (OpenAPI 3.1)
@@ -227,7 +315,7 @@ Semua tangkapan layar diambil dari aplikasi yang berjalan dengan **API Laravel a
 │       ├── auth/                AuthProvider, guard RequireAdmin
 │       ├── components/          ui/ (Radix + Tailwind), brand/, layout/
 │       ├── domain/              Normalisasi status, progres peserta (dites)
-│       ├── features/            members, transactions, schedules, plans, auth
+│       ├── features/            members, transactions, schedules, plans, audit, auth
 │       ├── hooks/               useApiQuery (abort + reload), useMutation (kunci submit)
 │       └── lib/                 http client, format, config, token storage
 ├── member-app/                  Expo + expo-router + TypeScript strict
@@ -235,8 +323,8 @@ Semua tangkapan layar diambil dari aplikasi yang berjalan dengan **API Laravel a
 │   └── src/
 │       ├── app/                 Rute: login, (tabs)/…, schedules/[id], plans, apply
 │       ├── api/  auth/  hooks/  lib/
-│       ├── components/          Kartu, chip status, counter peserta, state views
-│       ├── domain/              Aturan booking, normalisasi status (dites)
+│       ├── components/          Kartu paket/jadwal/membership, chip status, FadeIn, state views
+│       ├── domain/              Aturan booking, normalisasi status, label paket (dites)
 │       └── theme.ts             Tema Material 3 dengan palet brand
 └── docs/
     ├── SETUP.md                 Panduan menjalankan, variabel lingkungan, skenario E2E
@@ -280,6 +368,7 @@ erDiagram
     INSTRUCTORS ||--o{ CLASS_SCHEDULES : mengajar
     CLASS_SCHEDULES ||--o{ CLASS_PARTICIPANTS : diikuti
     USERS ||--o{ CLASS_PARTICIPANTS : booking
+    USERS ||--o{ AUDIT_LOGS : melakukan
 
     USERS {
         bigint id PK
@@ -290,6 +379,7 @@ erDiagram
     }
     MEMBERSHIP_PLANS {
         bigint id PK
+        string code UK
         string name
         int duration_days
         int price
@@ -344,6 +434,16 @@ erDiagram
         string status
         datetime booked_at
     }
+    AUDIT_LOGS {
+        bigint id PK
+        bigint actor_id FK
+        string action
+        string subject_type
+        bigint subject_id
+        json properties
+        string ip_address
+        datetime created_at
+    }
 ```
 
 Catatan desain skema:
@@ -352,16 +452,19 @@ Catatan desain skema:
 - **Booking:** `class_participants` memiliki UNIQUE `(class_schedule_id, user_id)`. Pembatalan mengubah status, tidak menghapus baris.
 - **Jumlah peserta** dihitung langsung dari booking yang tidak dibatalkan, tanpa kolom counter yang bisa tidak sinkron.
 - **Tidak ada kolom kapasitas maksimum** di tabel kelas.
+- **`membership_plans.code`** (`per_visit`, `monthly`, `quarterly`, `yearly`) mengenali paket standar walau admin mengganti namanya. Paket buatan admin tidak punya kode.
+- **`transactions.amount`** menyimpan harga saat pengajuan, terpisah dari `membership_plans.price`.
+- **`audit_logs`** hanya ditambah; `actor_id` menjadi `NULL` bila user dihapus agar catatannya tetap ada.
 
 ## Kontrak API
 
-Dokumen lengkap: [`api/docs/openapi.yaml`](api/docs/openapi.yaml) (OpenAPI 3.1, 29 operasi).
+Dokumen lengkap: [`api/docs/openapi.yaml`](api/docs/openapi.yaml) (OpenAPI 3.1, 30 operasi).
 
 | Metode | Endpoint | Akses | Keterangan |
 |---|---|---|---|
 | GET | `/health` | Publik | Cek server |
 | GET | `/membership-plans` | Publik | Paket aktif |
-| POST | `/login` | Publik | Token bearer (5/menit) |
+| POST | `/login` | Publik | Token bearer + `expires_at` (5/menit per akun) |
 | POST | `/logout` | Login | Cabut token (204) |
 | GET | `/me` | Login | Profil + ringkasan membership (`status`, `is_active`, `has_pending_application`, paket, periode) |
 | GET, POST | `/member/memberships` | Member | Riwayat / ajukan (201) |
@@ -376,6 +479,7 @@ Dokumen lengkap: [`api/docs/openapi.yaml`](api/docs/openapi.yaml) (OpenAPI 3.1, 
 | GET, POST, GET, PUT, DELETE | `/admin/class-schedules[/{id}]` | Admin | Kelola jadwal |
 | PATCH | `/admin/class-schedules/{id}/status` | Admin | Ubah status sesi |
 | GET | `/admin/classes`, `/admin/instructors` | Admin | Pilihan form jadwal |
+| GET | `/admin/audit-logs?action&page` | Admin | Log aktivitas admin, 20 per halaman |
 
 Contoh respons error:
 
@@ -386,6 +490,8 @@ Contoh respons error:
 { "message": "Anda sudah membooking sesi ini." }
 // 401
 { "message": "Unauthenticated." }
+// 429 (+ header Retry-After)
+{ "message": "Terlalu banyak permintaan. Coba lagi dalam beberapa saat." }
 ```
 
 ## Instalasi dan menjalankan
@@ -434,10 +540,12 @@ Buat `member-app/.env` berisi `EXPO_PUBLIC_API_URL`, lalu:
 npx expo start
 ```
 
+Memperbarui basis data lama cukup dengan `php artisan migrate` (harga paket ikut diperbarui tanpa menghapus data).
+
 Pindai QR code dengan Expo Go (HP dan komputer satu jaringan; isi URL dengan IP komputer), atau tekan `w` untuk versi web.
 
 **Variabel lingkungan (nama saja):**
-- API: `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_TIMEZONE`, `APP_LOCALE`, `DB_CONNECTION`, `DB_DATABASE`, `SEED_PASSWORD`, `CACHE_STORE`, `SESSION_DRIVER`, `QUEUE_CONNECTION`.
+- API: `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_TIMEZONE`, `APP_LOCALE`, `DB_CONNECTION`, `DB_DATABASE`, `SEED_PASSWORD`, `CACHE_STORE`, `SESSION_DRIVER`, `QUEUE_CONNECTION`, `LOG_CHANNEL`, `LOG_LEVEL`, `CORS_ALLOWED_ORIGINS`, `ADMIN_TOKEN_TTL_MINUTES`, `MEMBER_TOKEN_TTL_MINUTES`, `SANCTUM_TOKEN_PREFIX`, `SANCTUM_EXPIRATION`.
 - Admin web: `VITE_API_URL`.
 - Member app: `EXPO_PUBLIC_API_URL`.
 
@@ -453,9 +561,9 @@ cd member-app && npm run typecheck && npm run lint && npm test
 
 | Bagian | Cakupan | Hasil terakhir |
 |---|---|---|
-| API (PHPUnit) | Auth (login/me/logout/401/403), paket (CRUD, 404, 409), pengajuan (201, pending ganda, overlap, validasi 422), approval (periode inklusif, geser tanggal lampau, 409), booking (200, 401, 404, 409, 422 untuk sesi batal/dimulai/membership tidak aktif, batal dan booking ulang), daftar member (status, filter paket, pencarian, paginasi), jadwal admin, alur end-to-end, seeder, unit resolver status, dan status tampilan sesi | **82 tes lulus (363 assertion)**, Pint lulus |
-| Admin web (Vitest) | Normalisasi status membership/jadwal/transaksi, aksi jadwal, progres peserta, klien HTTP dan error, format, `useMutation` (kunci submit ganda), `useApiQuery` (menunggu auth, membatalkan request lama, reload, 401) | **40 tes lulus**; `tsc` strict, ESLint (0 peringatan), dan build produksi lulus |
-| Member app (Vitest) | Aturan booking (aktif pada tanggal sesi, perpanjangan, sesi batal/dimulai, batal booking), normalisasi status, saran tanggal mulai, format tanggal/rupiah, helper HTTP | **31 tes lulus**; `tsc` strict dan ESLint (termasuk aturan React Compiler) lulus |
+| API (PHPUnit) | Auth (login/me/logout/401/403), paket (CRUD, 404, 409), pengajuan (201, pending ganda, overlap, validasi 422), approval (periode inklusif, geser tanggal lampau, 409), booking (200, 401, 404, 409, 422 untuk sesi batal/dimulai/membership tidak aktif, batal dan booking ulang), daftar member (status, filter paket, pencarian, paginasi), jadwal admin, alur end-to-end, seeder (4 paket dan harganya), unit resolver status, status tampilan sesi, **keamanan** (rate limit login 429, pesan login seragam, umur token per peran dan kedaluwarsa, pembersihan token, header keamanan, CORS, IDOR booking/riwayat, member tanpa nama peserta lain, admin↔member 403, mass assignment, sanitasi HTML, nama paket unik, tanpa hash kata sandi di respons), **audit log** (approve/tolak/ubah harga/ubah status sesi/login admin, tanpa rahasia, tidak tercatat bila aksi gagal, filter, append-only), **katalog harga** (migrasi paket lama tanpa mengubah transaksi dan paket custom, idempoten, urutan dan harga endpoint publik) | **109 tes lulus (476 assertion)**, Pint lulus |
+| Admin web (Vitest) | Normalisasi status membership/jadwal/transaksi, aksi jadwal, progres peserta, klien HTTP dan error, format, `useMutation` (kunci submit ganda), `useApiQuery` (menunggu auth, membatalkan request lama, reload, 401), format `Rp75.000`/durasi/periode satu hari, ringkasan log aktivitas | **46 tes lulus**; `tsc` strict, ESLint (0 peringatan), dan build produksi lulus |
+| Member app (Vitest) | Aturan booking (aktif pada tanggal sesi, perpanjangan, sesi batal/dimulai, batal booking), normalisasi status, saran tanggal mulai, format tanggal/rupiah (harga paket baru, periode satu hari), label durasi dan label pembaca layar paket, helper HTTP | **33 tes lulus**; `tsc` strict dan ESLint (termasuk aturan React Compiler) lulus |
 
 ## Hasil analisis
 
@@ -522,6 +630,18 @@ Uji dijalankan pada API asli (`php artisan serve` + SQLite), admin web (Vite), d
 | Tombol "Perpanjang" tetap muncul saat perpanjangan masih pending | `/me` mengirim `has_pending_application`, dan aplikasi menyembunyikan tombol |
 | Tabel transaksi admin melebar melewati layar | Kolom grid `minmax(0,1fr)` dan padding sel lebih rapat |
 
+Putaran kedua (pembaruan UI/UX, harga, dan keamanan), dijalankan pada basis data demo yang masih berisi harga lama:
+
+| Temuan | Perbaikan |
+|---|---|
+| Format harga berbeda: admin `Rp 150.000` (dengan spasi), member `Rp150.000` | `formatRupiah` admin diseragamkan menjadi `Rp75.000`, dengan tes |
+| Harga paket ditulis di seeder dan tidak bisa diperbarui di basis data yang sudah ada | Katalog dipindah ke `config/membership.php`; migrasi memperbarui paket lama di tempat. Diverifikasi: 3 paket lama diperbarui, Per Datang ditambahkan, 6 transaksi lama (total Rp1.400.000) tidak berubah |
+| Pengajuan pending lama tetap bernominal harga lama tanpa penjelasan | Halaman Transaksi menampilkan *Harga paket kini …* di bawah nominal |
+| Paket Per Datang tampil "20 Nov 2026 – 20 Nov 2026" | Periode satu hari ditampilkan sebagai satu tanggal |
+| Garis bawah filter Log Aktivitas hanya selebar kotak filter | Pembatas dibuat selebar kartu |
+
+Alur ajukan paket 1 Bulan (Rp500.000) → admin setujui → toast periode → catatan *Transaksi disetujui* di Log Aktivitas berhasil di browser. Header keamanan, CORS (origin asing tidak mendapat `Access-Control-Allow-Origin`), dan 401 tanpa token diperiksa langsung ke server yang berjalan.
+
 Kasus negatif pada API live:
 
 | Kasus | Hasil |
@@ -535,21 +655,15 @@ Kasus negatif pada API live:
 
 ### 5. Keamanan dan privasi
 
-- Tidak ada kredensial, token, atau file `.env` di repositori.
-- Kata sandi seeder dibaca dari `SEED_PASSWORD`. Seeder menolak berjalan bila nilainya kosong, dan menolak berjalan di `production`.
-- Kata sandi di-hash (bcrypt).
-- Token bearer Sanctum dicabut saat logout.
-- Peran dicek oleh middleware `role` setelah `auth:sanctum`.
-- Login dibatasi 5/menit dan pengajuan 10/menit.
-- Persetujuan transaksi dan booking memakai transaksi database dengan kunci baris untuk mencegah race condition di server.
-- Di klien, tombol dikunci selama request dan request lama dibatalkan.
-- Token admin disimpan di `localStorage`. Token member disimpan di `expo-secure-store` (native) dan `localStorage` (web).
+Rincian penerapan dan risiko yang tersisa ada di bagian [Keamanan](#keamanan). Di sisi klien, tombol dikunci selama request dan request lama dibatalkan. Token admin disimpan di `localStorage`; token member di `expo-secure-store` (native) dan `localStorage` (web).
 
 ## Keterbatasan dan rekomendasi
 
 **Belum diverifikasi**
 - Aplikasi member belum diuji di HP fisik lewat Expo Go maupun build native Android/iOS. Pengujian visual dilakukan pada versi web Expo dengan emulasi 360dp dan 412dp.
-- `npx @redocly/cli lint` tidak dijalankan karena izin mengunduh alat ditolak saat pengembangan. Sebagai gantinya, skrip lokal memastikan semua `$ref` OpenAPI valid dan 29 operasi cocok dengan 29 route Laravel.
+- `npx @redocly/cli lint` tidak dijalankan karena izin mengunduh alat ditolak saat pengembangan. Sebagai gantinya, skrip lokal memastikan semua `$ref` OpenAPI valid dan 30 operasi cocok dengan 30 route Laravel.
+- Animasi dengan *kurangi gerakan* aktif diperiksa lewat kode (aturan CSS dan `AccessibilityInfo`), belum diuji dengan pengaturan sistem yang benar-benar dinyalakan.
+- Screenshot admin nomor 03, 07–11, dan 14 diambil sebelum menu *Log Aktivitas* ditambahkan, sehingga sidebarnya belum memuat menu tersebut. Isi halamannya tidak berubah.
 
 **Keterbatasan fungsional**
 - Logo ilustrasi brand belum disertakan karena filenya tidak tersedia.
@@ -557,8 +671,9 @@ Kasus negatif pada API live:
 - Status `expired` tersimpan tidak diubah oleh job terjadwal. Status terkini dihitung dari tanggal saat dibaca, sehingga hasilnya tetap benar.
 
 **Rekomendasi sebelum produksi**
-- Ganti SQLite dengan MySQL/PostgreSQL.
-- Batasi CORS ke domain frontend.
-- Atur masa berlaku token Sanctum.
+- Ganti SQLite dengan MySQL/PostgreSQL dan Redis untuk cache rate limit.
+- Isi `CORS_ALLOWED_ORIGINS` dengan domain frontend asli dan pasang HTTPS.
+- Jadwalkan `sanctum:prune-expired`.
+- Pertimbangkan autentikasi cookie `HttpOnly` untuk admin web dan MFA untuk admin.
 - Tambahkan upload bukti transfer dan notifikasi WhatsApp bila dibutuhkan.
 - Siapkan build EAS untuk Android/iOS.

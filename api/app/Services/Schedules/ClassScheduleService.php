@@ -2,17 +2,24 @@
 
 namespace App\Services\Schedules;
 
+use App\Enums\AuditAction;
 use App\Enums\ScheduleStatus;
 use App\Exceptions\ConflictException;
 use App\Models\ClassSchedule;
 use App\Models\User;
+use App\Services\Audit\AuditLogger;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ClassScheduleService
 {
+    private const AUDITED_FIELDS = ['gym_class_id', 'instructor_id', 'schedule_date', 'start_time', 'end_time'];
+
+    public function __construct(private readonly AuditLogger $audit) {}
+
     /**
      * @return Collection<int, ClassSchedule>
      */
@@ -46,14 +53,17 @@ class ClassScheduleService
      *
      * @throws ValidationException bila waktu mulai sudah lewat atau instruktur bentrok
      */
-    public function create(array $data): ClassSchedule
+    public function create(array $data, User $actor): ClassSchedule
     {
         $attributes = $this->normalize($data);
         $this->ensureValidSlot($attributes);
 
-        return ClassSchedule::query()
-            ->create($attributes + ['status' => ScheduleStatus::Scheduled])
-            ->loadDetails();
+        return DB::transaction(function () use ($attributes, $actor) {
+            $schedule = ClassSchedule::query()->create($attributes + ['status' => ScheduleStatus::Scheduled]);
+            $this->audit->record($actor, AuditAction::ScheduleCreated, $schedule, $attributes);
+
+            return $schedule->loadDetails();
+        });
     }
 
     /**
@@ -61,7 +71,7 @@ class ClassScheduleService
      *
      * @throws ValidationException bila sesi tidak bisa diubah, waktu mulai sudah lewat, atau instruktur bentrok
      */
-    public function update(ClassSchedule $schedule, array $data): ClassSchedule
+    public function update(ClassSchedule $schedule, array $data, User $actor): ClassSchedule
     {
         if ($schedule->status !== ScheduleStatus::Scheduled || $schedule->hasStarted(now())) {
             throw ValidationException::withMessages([
@@ -72,15 +82,22 @@ class ClassScheduleService
         $attributes = $this->normalize($data);
         $this->ensureValidSlot($attributes, $schedule);
 
-        $schedule->update($attributes);
+        return DB::transaction(function () use ($schedule, $attributes, $actor) {
+            $schedule->update($attributes);
+            $changes = $this->audit->changes($schedule, self::AUDITED_FIELDS);
 
-        return $schedule->loadDetails();
+            if ($changes !== []) {
+                $this->audit->record($actor, AuditAction::ScheduleUpdated, $schedule, ['changes' => $changes]);
+            }
+
+            return $schedule->loadDetails();
+        });
     }
 
     /**
      * @throws ValidationException bila perpindahan status tidak diizinkan
      */
-    public function changeStatus(ClassSchedule $schedule, ScheduleStatus $target, ?string $cancelReason): ClassSchedule
+    public function changeStatus(ClassSchedule $schedule, ScheduleStatus $target, ?string $cancelReason, User $actor): ClassSchedule
     {
         if (! $schedule->status->canTransitionTo($target)) {
             throw ValidationException::withMessages([
@@ -88,24 +105,41 @@ class ClassScheduleService
             ]);
         }
 
-        $schedule->update([
-            'status' => $target,
-            'cancel_reason' => $target === ScheduleStatus::Cancelled ? $cancelReason : null,
-        ]);
+        return DB::transaction(function () use ($schedule, $target, $cancelReason, $actor) {
+            $from = $schedule->status;
 
-        return $schedule->loadDetails();
+            $schedule->update([
+                'status' => $target,
+                'cancel_reason' => $target === ScheduleStatus::Cancelled ? $cancelReason : null,
+            ]);
+
+            $this->audit->record($actor, AuditAction::ScheduleStatusChanged, $schedule, array_filter([
+                'from' => $from->value,
+                'to' => $target->value,
+                'cancel_reason' => $schedule->cancel_reason,
+            ], fn ($value) => $value !== null));
+
+            return $schedule->loadDetails();
+        });
     }
 
     /**
      * @throws ConflictException bila sesi sudah pernah dibooking
      */
-    public function delete(ClassSchedule $schedule): void
+    public function delete(ClassSchedule $schedule, User $actor): void
     {
         if ($schedule->participants()->exists()) {
             throw new ConflictException('Sesi yang sudah pernah dibooking tidak bisa dihapus. Batalkan sesinya saja.');
         }
 
-        $schedule->delete();
+        DB::transaction(function () use ($schedule, $actor) {
+            $this->audit->record($actor, AuditAction::ScheduleDeleted, $schedule, [
+                'schedule_date' => $schedule->schedule_date->toDateString(),
+                'start_time' => $schedule->start_time,
+                'gym_class_id' => $schedule->gym_class_id,
+            ]);
+            $schedule->delete();
+        });
     }
 
     /**

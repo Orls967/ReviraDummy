@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/Input';
 import { Label } from '../../components/ui/Label';
 import { Switch } from '../../components/ui/Switch';
 import { Textarea } from '../../components/ui/Textarea';
+import { formatRupiah } from '../../lib/format';
 import type { ApiError } from '../../lib/http';
 
 interface PlanFormDialogProps {
@@ -47,6 +48,12 @@ function toInput(values: PlanFormValues): MembershipPlanInput {
   };
 }
 
+function pricePreview(value: string): string | undefined {
+  const amount = Number(value);
+
+  return value.trim() !== '' && Number.isInteger(amount) && amount >= 0 ? `Tampil sebagai ${formatRupiah(amount)}` : undefined;
+}
+
 export function PlanFormDialog({ open, plan, isPending, error, onSubmit, onClose }: PlanFormDialogProps) {
   const [values, setValues] = useState(() => initialValues(plan));
   const set = <K extends keyof PlanFormValues>(key: K, value: PlanFormValues[K]) => setValues((current) => ({ ...current, [key]: value }));
@@ -73,7 +80,7 @@ export function PlanFormDialog({ open, plan, isPending, error, onSubmit, onClose
             )}
           </FormField>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Durasi (hari)" error={error?.fieldError('duration_days')}>
+            <FormField label="Durasi (hari)" error={error?.fieldError('duration_days')} hint="1 = per datang, 30 = 1 bulan">
               {(control) => (
                 <Input
                   {...control}
@@ -86,7 +93,7 @@ export function PlanFormDialog({ open, plan, isPending, error, onSubmit, onClose
                 />
               )}
             </FormField>
-            <FormField label="Harga (Rp)" error={error?.fieldError('price')}>
+            <FormField label="Harga (Rp)" error={error?.fieldError('price')} hint={pricePreview(values.price)}>
               {(control) => (
                 <Input
                   {...control}

@@ -2,13 +2,18 @@
 
 namespace App\Http\Requests\Admin;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\AdminRequest;
+use App\Http\Requests\Concerns\SanitizesText;
+use App\Models\MembershipPlan;
+use Illuminate\Validation\Rule;
 
-class SaveMembershipPlanRequest extends FormRequest
+class SaveMembershipPlanRequest extends AdminRequest
 {
-    public function authorize(): bool
+    use SanitizesText;
+
+    protected function prepareForValidation(): void
     {
-        return true;
+        $this->sanitizeText(['name', 'description']);
     }
 
     /**
@@ -17,7 +22,12 @@ class SaveMembershipPlanRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:100'],
+            'name' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique(MembershipPlan::class, 'name')->ignore($this->route('membershipPlan')),
+            ],
             'duration_days' => ['required', 'integer', 'min:1', 'max:3650'],
             'price' => ['required', 'integer', 'min:0', 'max:100000000'],
             'description' => ['sometimes', 'nullable', 'string', 'max:1000'],

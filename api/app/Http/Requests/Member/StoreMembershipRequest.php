@@ -3,18 +3,13 @@
 namespace App\Http\Requests\Member;
 
 use App\Enums\PaymentMethod;
+use App\Http\Requests\MemberRequest;
 use App\Models\MembershipPlan;
 use Carbon\CarbonImmutable;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class StoreMembershipRequest extends FormRequest
+class StoreMembershipRequest extends MemberRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     /**
      * @return array<string, mixed>
      */

@@ -11,6 +11,7 @@ export interface User {
 export interface AuthSession {
   token: string;
   token_type: 'Bearer';
+  expires_at: string;
   user: User;
 }
 
@@ -18,10 +19,10 @@ export interface PlanSummary {
   id: number;
   name: string;
   duration_days: number;
+  price: number;
 }
 
 export interface MembershipPlan extends PlanSummary {
-  price: number;
   description: string | null;
   is_active: boolean;
 }
@@ -130,6 +131,17 @@ export interface PaginationMeta {
   last_page: number;
   per_page: number;
   total: number;
+}
+
+export interface AuditLogEntry {
+  id: number;
+  action: string;
+  action_label: string;
+  actor: { id: number; name: string } | null;
+  subject_type: string;
+  subject_id: number | null;
+  properties: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface Paginated<T> {

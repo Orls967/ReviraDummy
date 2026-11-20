@@ -18,6 +18,7 @@ class AuthSessionResource extends JsonResource
         return [
             'token' => $this->resource['token'],
             'token_type' => 'Bearer',
+            'expires_at' => $this->resource['expires_at'],
             'user' => new UserResource($this->resource['user']),
         ];
     }

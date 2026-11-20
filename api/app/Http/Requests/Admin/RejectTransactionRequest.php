@@ -2,13 +2,16 @@
 
 namespace App\Http\Requests\Admin;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\AdminRequest;
+use App\Http\Requests\Concerns\SanitizesText;
 
-class RejectTransactionRequest extends FormRequest
+class RejectTransactionRequest extends AdminRequest
 {
-    public function authorize(): bool
+    use SanitizesText;
+
+    protected function prepareForValidation(): void
     {
-        return true;
+        $this->sanitizeText(['reason']);
     }
 
     /**

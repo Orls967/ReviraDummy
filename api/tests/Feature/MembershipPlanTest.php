@@ -13,16 +13,16 @@ class MembershipPlanTest extends TestCase
 
     public function test_public_list_shows_only_active_plans_sorted_by_price(): void
     {
-        MembershipPlan::factory()->create(['name' => 'Tahunan', 'price' => 1400000, 'duration_days' => 365]);
-        MembershipPlan::factory()->create(['name' => 'Bulanan', 'price' => 150000]);
+        MembershipPlan::factory()->create(['name' => '1 Tahun', 'price' => 3075000, 'duration_days' => 365]);
+        MembershipPlan::factory()->create(['name' => '1 Bulan', 'price' => 500000]);
         MembershipPlan::factory()->inactive()->create(['name' => 'Lama']);
 
         $this->getJson('/api/v1/membership-plans')
             ->assertOk()
             ->assertJsonCount(2, 'data')
-            ->assertJsonPath('data.0.name', 'Bulanan')
-            ->assertJsonPath('data.0.price', 150000)
-            ->assertJsonPath('data.1.name', 'Tahunan')
+            ->assertJsonPath('data.0.name', '1 Bulan')
+            ->assertJsonPath('data.0.price', 500000)
+            ->assertJsonPath('data.1.name', '1 Tahun')
             ->assertJsonPath('data.1.duration_days', 365);
     }
 
@@ -31,16 +31,16 @@ class MembershipPlanTest extends TestCase
         $this->actingAsAdmin();
 
         $this->postJson('/api/v1/admin/membership-plans', [
-            'name' => 'Triwulan',
+            'name' => '3 Bulan',
             'duration_days' => 90,
-            'price' => 400000,
+            'price' => 1050000,
             'description' => 'Tiga bulan.',
         ])
             ->assertCreated()
-            ->assertJsonPath('data.name', 'Triwulan')
+            ->assertJsonPath('data.name', '3 Bulan')
             ->assertJsonPath('data.is_active', true);
 
-        $this->assertDatabaseHas('membership_plans', ['name' => 'Triwulan', 'duration_days' => 90, 'price' => 400000]);
+        $this->assertDatabaseHas('membership_plans', ['name' => '3 Bulan', 'duration_days' => 90, 'price' => 1050000]);
     }
 
     public function test_create_plan_validates_input(): void
@@ -60,13 +60,13 @@ class MembershipPlanTest extends TestCase
         $this->getJson("/api/v1/admin/membership-plans/{$plan->id}")->assertOk()->assertJsonPath('data.id', $plan->id);
 
         $this->putJson("/api/v1/admin/membership-plans/{$plan->id}", [
-            'name' => 'Bulanan Plus',
+            'name' => '1 Bulan Plus',
             'duration_days' => 31,
-            'price' => 175000,
+            'price' => 525000,
             'is_active' => false,
         ])
             ->assertOk()
-            ->assertJsonPath('data.name', 'Bulanan Plus')
+            ->assertJsonPath('data.name', '1 Bulan Plus')
             ->assertJsonPath('data.is_active', false);
 
         $this->getJson('/api/v1/admin/membership-plans')->assertOk()->assertJsonCount(1, 'data');

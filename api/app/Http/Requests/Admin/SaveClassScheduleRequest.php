@@ -2,15 +2,10 @@
 
 namespace App\Http\Requests\Admin;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\AdminRequest;
 
-class SaveClassScheduleRequest extends FormRequest
+class SaveClassScheduleRequest extends AdminRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     /**
      * @return array<string, mixed>
      */

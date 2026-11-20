@@ -64,7 +64,7 @@ export function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-10">
-      <div className="grid w-full max-w-sm gap-6">
+      <div className="grid w-full max-w-sm animate-page-in gap-6">
         <div className="flex flex-col items-center gap-4 text-center">
           <BrandMark size="lg" />
           <BrandWordmark tone="black" className="text-2xl" />

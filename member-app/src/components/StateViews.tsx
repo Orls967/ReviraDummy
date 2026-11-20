@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Button, Icon, Text, useTheme } from 'react-native-paper';
+import { FadeIn } from './FadeIn';
 
 type IconName = ComponentProps<typeof Icon>['source'];
 
@@ -23,16 +24,18 @@ export function ErrorView({ message, onRetry, retrying = false }: ErrorViewProps
   const theme = useTheme();
 
   return (
-    <View style={styles.container} accessibilityRole="alert">
-      <Icon source="wifi-alert" size={36} color={theme.colors.error} />
-      <Text variant="titleMedium">Data gagal dimuat</Text>
-      <Text variant="bodyMedium" style={[styles.center, { color: theme.colors.onSurfaceVariant }]}>
-        {message}
-      </Text>
-      <Button mode="outlined" icon="refresh" onPress={onRetry} loading={retrying} disabled={retrying}>
-        Coba lagi
-      </Button>
-    </View>
+    <FadeIn>
+      <View style={styles.container} accessibilityRole="alert">
+        <Icon source="wifi-alert" size={36} color={theme.colors.error} />
+        <Text variant="titleMedium">Data gagal dimuat</Text>
+        <Text variant="bodyMedium" style={[styles.center, { color: theme.colors.onSurfaceVariant }]}>
+          {message}
+        </Text>
+        <Button mode="outlined" icon="refresh" onPress={onRetry} loading={retrying} disabled={retrying}>
+          Coba lagi
+        </Button>
+      </View>
+    </FadeIn>
   );
 }
 
@@ -48,8 +51,10 @@ export function EmptyView({ icon, title, description, actionLabel, onAction }: E
   const theme = useTheme();
 
   return (
-    <View style={styles.container}>
-      <Icon source={icon} size={36} color={theme.colors.onSurfaceVariant} />
+    <FadeIn style={styles.container}>
+      <View style={[styles.iconCircle, { backgroundColor: theme.colors.surfaceVariant }]}>
+        <Icon source={icon} size={32} color={theme.colors.onSurfaceVariant} />
+      </View>
       <Text variant="titleMedium" style={styles.center}>
         {title}
       </Text>
@@ -61,7 +66,7 @@ export function EmptyView({ icon, title, description, actionLabel, onAction }: E
           {actionLabel}
         </Button>
       )}
-    </View>
+    </FadeIn>
   );
 }
 
@@ -75,5 +80,12 @@ const styles = StyleSheet.create({
   },
   center: {
     textAlign: 'center',
+  },
+  iconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

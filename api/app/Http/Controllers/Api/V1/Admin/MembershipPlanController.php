@@ -8,6 +8,7 @@ use App\Http\Resources\MembershipPlanResource;
 use App\Models\MembershipPlan;
 use App\Services\Plans\MembershipPlanService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
@@ -22,7 +23,7 @@ class MembershipPlanController extends Controller
 
     public function store(SaveMembershipPlanRequest $request): JsonResponse
     {
-        return (new MembershipPlanResource($this->plans->create($request->validated())))
+        return (new MembershipPlanResource($this->plans->create($request->validated(), $request->user())))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
     }
@@ -34,12 +35,12 @@ class MembershipPlanController extends Controller
 
     public function update(SaveMembershipPlanRequest $request, MembershipPlan $membershipPlan): MembershipPlanResource
     {
-        return new MembershipPlanResource($this->plans->update($membershipPlan, $request->validated()));
+        return new MembershipPlanResource($this->plans->update($membershipPlan, $request->validated(), $request->user()));
     }
 
-    public function destroy(MembershipPlan $membershipPlan): Response
+    public function destroy(Request $request, MembershipPlan $membershipPlan): Response
     {
-        $this->plans->delete($membershipPlan);
+        $this->plans->delete($membershipPlan, $request->user());
 
         return response()->noContent();
     }

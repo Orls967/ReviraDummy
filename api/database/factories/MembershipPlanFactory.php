@@ -15,7 +15,7 @@ class MembershipPlanFactory extends Factory
         return [
             'name' => 'Paket '.fake()->unique()->word(),
             'duration_days' => 30,
-            'price' => 150000,
+            'price' => 500000,
             'description' => fake()->sentence(),
             'is_active' => true,
         ];

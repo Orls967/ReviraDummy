@@ -3,16 +3,11 @@
 namespace App\Http\Requests\Admin;
 
 use App\Enums\CurrentMembershipStatus;
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\AdminRequest;
 use Illuminate\Validation\Rule;
 
-class IndexMemberRequest extends FormRequest
+class IndexMemberRequest extends AdminRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     /**
      * @return array<string, mixed>
      */

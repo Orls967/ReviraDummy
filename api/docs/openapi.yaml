@@ -11,6 +11,9 @@ info:
       dengan offset zona waktu aplikasi (bawaan `Asia/Makassar`, `+08:00`).
     - Uang (`price`, `amount`) adalah bilangan bulat rupiah.
     - Kelas hanya punya batas minimum peserta (`min_participants`); tidak ada kapasitas maksimum.
+    - Token admin berlaku 8 jam dan token member 30 hari (bawaan, lihat `config/security.php`).
+    - Semua endpoint dibatasi jumlah permintaan per menit dan menjawab **429** bila batas terlampaui.
+    - Respons membawa header keamanan (`X-Content-Type-Options`, `X-Frame-Options`, `Cache-Control: no-store`).
   license:
     name: Proprietary
     identifier: LicenseRef-Proprietary
@@ -102,13 +105,17 @@ paths:
                 properties:
                   data:
                     type: object
-                    required: [token, token_type, user]
+                    required: [token, token_type, expires_at, user]
                     properties:
                       token:
                         type: string
                       token_type:
                         type: string
                         const: Bearer
+                      expires_at:
+                        type: string
+                        format: date-time
+                        description: Waktu token kedaluwarsa; setelahnya API menjawab 401
                       user:
                         $ref: '#/components/schemas/User'
         '422':
@@ -676,6 +683,43 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: Log aktivitas admin
+      description: |
+        Catatan append-only untuk aksi admin yang mengubah data penting (paket, transaksi, jadwal) dan login admin.
+        Tidak pernah berisi kata sandi atau token; alamat IP disimpan di server tetapi tidak dikirim di respons.
+      operationId: listAuditLogs
+      parameters:
+        - name: action
+          in: query
+          schema:
+            $ref: '#/components/schemas/AuditAction'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Catatan terbaru lebih dulu, 20 per halaman
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, links, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditLog'
+                  links:
+                    $ref: '#/components/schemas/PaginationLinks'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /admin/instructors:
     get:
       tags: [Admin]
@@ -839,11 +883,17 @@ components:
               booking:
                 - Membership Anda tidak aktif pada tanggal sesi ini.
     TooManyRequests:
-      description: Terlalu banyak percobaan
+      description: Terlalu banyak permintaan; header `Retry-After` berisi jeda dalam detik
+      headers:
+        Retry-After:
+          schema:
+            type: integer
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Message'
+          example:
+            message: Terlalu banyak permintaan. Coba lagi dalam beberapa saat.
     MembershipPlanItem:
       description: Paket membership
       content:
@@ -899,7 +949,7 @@ components:
           enum: [admin, member]
     PlanSummary:
       type: object
-      required: [id, name, duration_days]
+      required: [id, name, duration_days, price]
       properties:
         id:
           type: integer
@@ -907,6 +957,9 @@ components:
           type: string
         duration_days:
           type: integer
+        price:
+          type: integer
+          description: Harga paket saat ini (rupiah). Nominal yang dibayar member tercatat di transaksi.
     MembershipPlan:
       type: object
       required: [id, name, duration_days, price, description, is_active]
@@ -1169,6 +1222,50 @@ components:
           type: [string, 'null']
         next:
           type: [string, 'null']
+    AuditAction:
+      type: string
+      enum:
+        - auth.admin_login
+        - plan.created
+        - plan.updated
+        - plan.deleted
+        - transaction.approved
+        - transaction.rejected
+        - schedule.created
+        - schedule.updated
+        - schedule.status_changed
+        - schedule.deleted
+    AuditLog:
+      type: object
+      required: [id, action, action_label, actor, subject_type, subject_id, properties, created_at]
+      properties:
+        id:
+          type: integer
+        action:
+          $ref: '#/components/schemas/AuditAction'
+        action_label:
+          type: string
+          examples: [Transaksi disetujui]
+        actor:
+          type: [object, 'null']
+          required: [id, name]
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        subject_type:
+          type: string
+          examples: [transactions]
+        subject_id:
+          type: [integer, 'null']
+        properties:
+          type: object
+          description: "Detail aksi, mis. perubahan harga `{changes: {price: {from, to}}}`"
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
     PaginationMeta:
       type: object
       required: [current_page, last_page, per_page, total]

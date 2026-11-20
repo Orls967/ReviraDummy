@@ -20,6 +20,7 @@ class PlanSummaryResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'duration_days' => $this->duration_days,
+            'price' => $this->price,
         ];
     }
 }

@@ -1,6 +1,8 @@
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Platform, StyleSheet, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import type { StatusMeta } from '../domain/tone';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { toneColors } from '../theme';
 
 interface StatusChipProps {
@@ -9,17 +11,39 @@ interface StatusChipProps {
   onDark?: boolean;
 }
 
+/** Chip status; saat label berubah (mis. booking berhasil) chip "berdenyut" sekali agar perubahan terlihat. */
 export function StatusChip({ meta, onDark = false }: StatusChipProps) {
   const theme = useTheme();
   const colors = toneColors(meta.tone, onDark || theme.dark);
+  const reducedMotion = useReducedMotion();
+  const scale = useState(() => new Animated.Value(1))[0];
+  const previousLabel = useRef(meta.label);
+
+  useEffect(() => {
+    if (previousLabel.current === meta.label) {
+      return;
+    }
+
+    previousLabel.current = meta.label;
+
+    if (reducedMotion) {
+      return;
+    }
+
+    scale.setValue(0.85);
+    Animated.spring(scale, { toValue: 1, useNativeDriver: Platform.OS !== 'web', speed: 14, bounciness: 10 }).start();
+  }, [meta.label, reducedMotion, scale]);
 
   return (
-    <View style={[styles.chip, { backgroundColor: colors.background }]} accessibilityLabel={`Status: ${meta.label}`}>
+    <Animated.View
+      style={[styles.chip, { backgroundColor: colors.background, transform: [{ scale }] }]}
+      accessibilityLabel={`Status: ${meta.label}`}
+    >
       <View style={[styles.dot, { backgroundColor: colors.foreground }]} />
       <Text variant="labelMedium" style={{ color: colors.foreground }}>
         {meta.label}
       </Text>
-    </View>
+    </Animated.View>
   );
 }
 

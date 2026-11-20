@@ -37,7 +37,7 @@ export function FormField({ label, error, hint, children, action }: FormFieldPro
         </p>
       )}
       {error && (
-        <p id={errorId} className="text-xs font-medium text-destructive">
+        <p id={errorId} role="alert" className="animate-page-in text-xs font-medium text-destructive">
           {error}
         </p>
       )}

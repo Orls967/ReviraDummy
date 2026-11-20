@@ -3,16 +3,11 @@
 namespace App\Http\Requests\Admin;
 
 use App\Enums\TransactionStatus;
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\AdminRequest;
 use Illuminate\Validation\Rule;
 
-class IndexTransactionRequest extends FormRequest
+class IndexTransactionRequest extends AdminRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     /**
      * @return array<string, mixed>
      */

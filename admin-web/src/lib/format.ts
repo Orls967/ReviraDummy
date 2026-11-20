@@ -1,4 +1,4 @@
-const rupiah = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
+const thousands = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
 const shortDate = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const longDate = new Intl.DateTimeFormat('id-ID', {
   weekday: 'long',
@@ -20,8 +20,15 @@ function parseIsoDate(isoDate: string): Date {
   return new Date(`${isoDate}T00:00:00Z`);
 }
 
+/** Format harga gym: "Rp75.000" (tanpa spasi dan tanpa desimal), sama dengan aplikasi member. */
 export function formatRupiah(amount: number): string {
-  return rupiah.format(amount);
+  const rounded = Math.round(amount);
+
+  return `${rounded < 0 ? '-' : ''}Rp${thousands.format(Math.abs(rounded))}`;
+}
+
+export function formatDuration(days: number): string {
+  return `${days} hari`;
 }
 
 export function formatDate(isoDate: string): string {
@@ -41,7 +48,11 @@ export function formatPeriod(start: string | null, end: string | null): string {
     return '—';
   }
 
-  return end === null ? `Mulai ${formatDate(start)}` : `${formatDate(start)} – ${formatDate(end)}`;
+  if (end === null) {
+    return `Mulai ${formatDate(start)}`;
+  }
+
+  return end === start ? formatDate(start) : `${formatDate(start)} – ${formatDate(end)}`;
 }
 
 export function addDays(isoDate: string, days: number): string {

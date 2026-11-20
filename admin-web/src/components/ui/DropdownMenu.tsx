@@ -11,7 +11,7 @@ export function DropdownMenuContent({ className, ...props }: ComponentProps<type
       <MenuPrimitive.Content
         align="end"
         sideOffset={4}
-        className={cn('z-50 min-w-44 overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md', className)}
+        className={cn('z-50 min-w-44 origin-(--radix-dropdown-menu-content-transform-origin) animate-menu-in overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md', className)}
         {...props}
       />
     </MenuPrimitive.Portal>

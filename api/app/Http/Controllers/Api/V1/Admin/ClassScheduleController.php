@@ -10,6 +10,7 @@ use App\Http\Resources\ClassScheduleResource;
 use App\Models\ClassSchedule;
 use App\Services\Schedules\ClassScheduleService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
@@ -24,7 +25,7 @@ class ClassScheduleController extends Controller
 
     public function store(SaveClassScheduleRequest $request): JsonResponse
     {
-        return (new ClassScheduleResource($this->schedules->create($request->validated())))
+        return (new ClassScheduleResource($this->schedules->create($request->validated(), $request->user())))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
     }
@@ -36,7 +37,7 @@ class ClassScheduleController extends Controller
 
     public function update(SaveClassScheduleRequest $request, ClassSchedule $classSchedule): ClassScheduleResource
     {
-        return new ClassScheduleResource($this->schedules->update($classSchedule, $request->validated()));
+        return new ClassScheduleResource($this->schedules->update($classSchedule, $request->validated(), $request->user()));
     }
 
     public function updateStatus(UpdateClassScheduleStatusRequest $request, ClassSchedule $classSchedule): ClassScheduleResource
@@ -45,12 +46,13 @@ class ClassScheduleController extends Controller
             $classSchedule,
             $request->targetStatus(),
             $request->cancelReason(),
+            $request->user(),
         ));
     }
 
-    public function destroy(ClassSchedule $classSchedule): Response
+    public function destroy(Request $request, ClassSchedule $classSchedule): Response
     {
-        $this->schedules->delete($classSchedule);
+        $this->schedules->delete($classSchedule, $request->user());
 
         return response()->noContent();
     }

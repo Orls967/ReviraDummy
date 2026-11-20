@@ -2,10 +2,10 @@ export interface PlanSummary {
   id: number;
   name: string;
   duration_days: number;
+  price: number;
 }
 
 export interface MembershipPlan extends PlanSummary {
-  price: number;
   description: string | null;
   is_active: boolean;
 }
@@ -31,6 +31,7 @@ export interface Me {
 export interface AuthSession {
   token: string;
   token_type: 'Bearer';
+  expires_at: string;
   user: Me;
 }
 

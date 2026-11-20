@@ -35,7 +35,11 @@ class SeederTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $this->seed(DatabaseSeeder::class);
 
-        $this->assertSame(3, MembershipPlan::query()->count());
+        $this->assertSame(4, MembershipPlan::query()->count());
+        $this->assertSame(
+            ['Per Datang' => 75000, '1 Bulan' => 500000, '3 Bulan' => 1050000, '1 Tahun' => 3075000],
+            MembershipPlan::query()->orderBy('price')->pluck('price', 'name')->all(),
+        );
         $this->assertSame(1, User::query()->where('role', 'admin')->count());
         $this->assertSame(count(UserSeeder::MEMBERS), User::query()->members()->count());
         $this->assertSame(19, ClassSchedule::query()->count());

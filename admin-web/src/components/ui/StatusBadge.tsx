@@ -11,7 +11,7 @@ const DOT_CLASSES = {
 
 export function StatusBadge({ meta }: { meta: StatusMeta }) {
   return (
-    <Badge tone={meta.tone}>
+    <Badge key={meta.label} tone={meta.tone} className="animate-status-in">
       <span className={`size-1.5 rounded-full ${DOT_CLASSES[meta.tone]}`} aria-hidden="true" />
       {meta.label}
     </Badge>

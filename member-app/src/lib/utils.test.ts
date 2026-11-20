@@ -10,6 +10,7 @@ describe('dates', () => {
     expect(formatLongDate('2026-11-20')).toBe('Jumat, 20 November 2026');
     expect(formatDayChip('2026-11-22')).toEqual({ weekday: 'Min', day: '22', month: 'Nov' });
     expect(formatPeriod('2026-11-20', '2026-12-19')).toBe('20 Nov 2026 – 19 Des 2026');
+    expect(formatPeriod('2026-11-20', '2026-11-20')).toBe('20 Nov 2026');
   });
 
   it('menghitung tanggal', () => {
@@ -21,8 +22,10 @@ describe('dates', () => {
 
 describe('money', () => {
   it('memformat rupiah', () => {
-    expect(formatRupiah(150000)).toBe('Rp150.000');
-    expect(formatRupiah(1400000)).toBe('Rp1.400.000');
+    expect(formatRupiah(75000)).toBe('Rp75.000');
+    expect(formatRupiah(500000)).toBe('Rp500.000');
+    expect(formatRupiah(1050000)).toBe('Rp1.050.000');
+    expect(formatRupiah(3075000)).toBe('Rp3.075.000');
     expect(formatRupiah(0)).toBe('Rp0');
   });
 });

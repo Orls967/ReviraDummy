@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Middleware\EnsureRole;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -14,6 +16,8 @@ return Application::configure(basePath: dirname(__DIR__))
         apiPrefix: 'api/v1',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->api(append: [SecurityHeaders::class]);
+
         $middleware->alias([
             'role' => EnsureRole::class,
         ]);
@@ -30,6 +34,18 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (NotFoundHttpException $exception, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json(['message' => 'Data tidak ditemukan.'], JsonResponse::HTTP_NOT_FOUND);
+            }
+
+            return null;
+        });
+
+        $exceptions->render(function (ThrottleRequestsException $exception, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(
+                    ['message' => 'Terlalu banyak permintaan. Coba lagi dalam beberapa saat.'],
+                    JsonResponse::HTTP_TOO_MANY_REQUESTS,
+                    $exception->getHeaders(),
+                );
             }
 
             return null;

@@ -2,12 +2,14 @@
 
 namespace App\Services\Transactions;
 
+use App\Enums\AuditAction;
 use App\Enums\MembershipStatus;
 use App\Enums\TransactionStatus;
 use App\Exceptions\ConflictException;
 use App\Models\Membership;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\Audit\AuditLogger;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +17,8 @@ use Illuminate\Support\Facades\DB;
 class TransactionVerificationService
 {
     public const PER_PAGE = 15;
+
+    public function __construct(private readonly AuditLogger $audit) {}
 
     /**
      * @return LengthAwarePaginator<int, Transaction>
@@ -68,6 +72,14 @@ class TransactionVerificationService
                 'reject_reason' => null,
             ]);
 
+            $this->audit->record($admin, AuditAction::TransactionApproved, $transaction, [
+                'member_id' => $transaction->user_id,
+                'plan' => $membership->plan->name,
+                'amount' => $transaction->amount,
+                'start_date' => $startDate->toDateString(),
+                'end_date' => $endDate->toDateString(),
+            ]);
+
             return $transaction->load(['user', 'membership.plan']);
         });
     }
@@ -87,6 +99,13 @@ class TransactionVerificationService
                 'verified_by' => $admin->id,
                 'verified_at' => now(),
                 'reject_reason' => $reason,
+            ]);
+
+            $this->audit->record($admin, AuditAction::TransactionRejected, $transaction, [
+                'member_id' => $transaction->user_id,
+                'plan' => $membership->plan->name,
+                'amount' => $transaction->amount,
+                'reason' => $reason,
             ]);
 
             return $transaction->load(['user', 'membership.plan']);

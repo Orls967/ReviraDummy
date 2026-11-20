@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
+import { FadeIn } from './FadeIn';
 
 interface ScreenProps {
   children: ReactNode;
@@ -25,7 +26,7 @@ export function Screen({ children, refreshing = false, onRefresh, footer }: Scre
           onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} tintColor={theme.colors.primary} /> : undefined
         }
       >
-        <View style={styles.inner}>{children}</View>
+        <FadeIn style={styles.inner}>{children}</FadeIn>
       </ScrollView>
       {footer && (
         <View style={[styles.footer, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.outlineVariant }]}>

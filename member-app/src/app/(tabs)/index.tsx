@@ -7,7 +7,7 @@ import { useAuth } from '../../auth/useAuth';
 import { MembershipCard } from '../../components/MembershipCard';
 import { ScheduleCard } from '../../components/ScheduleCard';
 import { Screen } from '../../components/Screen';
-import { ErrorView, LoadingView } from '../../components/StateViews';
+import { EmptyView, ErrorView, LoadingView } from '../../components/StateViews';
 import { canApplyForMembership, normalizeMembershipStatus } from '../../domain/membershipStatus';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useReloadOnFocus } from '../../hooks/useReloadOnFocus';
@@ -79,9 +79,12 @@ export default function HomeScreen() {
         {bookings.isLoading && <LoadingView label="Memuat booking…" />}
         {bookings.error && !bookings.data && <ErrorView message={bookings.error.message} onRetry={bookings.reload} retrying={bookings.isRefreshing} />}
         {bookings.data && bookings.data.length === 0 && (
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-            Belum ada kelas yang Anda booking.
-          </Text>
+          <EmptyView
+            icon="calendar-blank-outline"
+            title="Belum ada booking"
+            description={canBook ? 'Pilih kelas dari jadwal minggu ini dan amankan tempat Anda.' : 'Booking kelas tersedia setelah membership Anda aktif.'}
+            {...(canBook ? { actionLabel: 'Cari kelas', onAction: () => router.navigate('/schedules') } : {})}
+          />
         )}
         {bookings.data?.slice(0, PREVIEW_COUNT).map((schedule) => (
           <ScheduleCard key={schedule.id} schedule={schedule} showDate onPress={() => router.push(`/schedules/${schedule.id}`)} />

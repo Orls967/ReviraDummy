@@ -3,14 +3,17 @@
 namespace App\Http\Requests\Admin;
 
 use App\Enums\ScheduleStatus;
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\AdminRequest;
+use App\Http\Requests\Concerns\SanitizesText;
 use Illuminate\Validation\Rule;
 
-class UpdateClassScheduleStatusRequest extends FormRequest
+class UpdateClassScheduleStatusRequest extends AdminRequest
 {
-    public function authorize(): bool
+    use SanitizesText;
+
+    protected function prepareForValidation(): void
     {
-        return true;
+        $this->sanitizeText(['cancel_reason']);
     }
 
     /**

@@ -20,8 +20,8 @@ class AdminMemberListTest extends TestCase
     {
         parent::setUp();
 
-        $this->monthly = MembershipPlan::factory()->create(['name' => 'Bulanan', 'duration_days' => 30]);
-        $this->quarterly = MembershipPlan::factory()->create(['name' => 'Triwulan', 'duration_days' => 90]);
+        $this->monthly = MembershipPlan::factory()->create(['name' => '1 Bulan', 'duration_days' => 30]);
+        $this->quarterly = MembershipPlan::factory()->create(['name' => '3 Bulan', 'duration_days' => 90]);
     }
 
     private function member(string $name): User
@@ -70,7 +70,7 @@ class AdminMemberListTest extends TestCase
         $rows = collect($response->json('data'))->keyBy('id');
 
         $this->assertSame('active', $rows[$members['active']->id]['membership_status']);
-        $this->assertSame('Triwulan', $rows[$members['active']->id]['plan']['name']);
+        $this->assertSame('3 Bulan', $rows[$members['active']->id]['plan']['name']);
         $this->assertSame('2026-11-10', $rows[$members['active']->id]['start_date']);
         $this->assertSame('2027-02-07', $rows[$members['active']->id]['end_date']);
         $this->assertSame($members['active']->phone_number, $rows[$members['active']->id]['phone_number']);
@@ -78,7 +78,7 @@ class AdminMemberListTest extends TestCase
         $this->assertSame('pending', $rows[$members['pending']->id]['membership_status']);
         $this->assertSame('upcoming', $rows[$members['upcoming']->id]['membership_status']);
         $this->assertSame('expired', $rows[$members['expired']->id]['membership_status']);
-        $this->assertSame('Bulanan', $rows[$members['expired']->id]['plan']['name']);
+        $this->assertSame('1 Bulan', $rows[$members['expired']->id]['plan']['name']);
         $this->assertSame('none', $rows[$members['none']->id]['membership_status']);
         $this->assertNull($rows[$members['none']->id]['plan']);
     }

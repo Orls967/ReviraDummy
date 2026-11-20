@@ -3,7 +3,7 @@ import type { MembershipPlan } from '../../api/types';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
-import { formatRupiah } from '../../lib/format';
+import { formatDuration, formatRupiah } from '../../lib/format';
 
 interface PlansTableProps {
   plans: MembershipPlan[];
@@ -28,13 +28,13 @@ export function PlansTable({ plans, onEdit, onDelete }: PlansTableProps) {
       </TableHeader>
       <TableBody>
         {plans.map((plan) => (
-          <TableRow key={plan.id}>
+          <TableRow key={plan.id} className="animate-row-in">
             <TableCell>
               <div className="font-medium">{plan.name}</div>
               {plan.description && <div className="max-w-md text-xs text-muted-foreground">{plan.description}</div>}
             </TableCell>
-            <TableCell className="text-right tabular-nums">{plan.duration_days} hari</TableCell>
-            <TableCell className="text-right font-medium tabular-nums">{formatRupiah(plan.price)}</TableCell>
+            <TableCell className="text-right whitespace-nowrap tabular-nums">{formatDuration(plan.duration_days)}</TableCell>
+            <TableCell className="text-right font-semibold whitespace-nowrap tabular-nums">{formatRupiah(plan.price)}</TableCell>
             <TableCell>
               <Badge tone={plan.is_active ? 'success' : 'neutral'}>{plan.is_active ? 'Aktif' : 'Nonaktif'}</Badge>
             </TableCell>

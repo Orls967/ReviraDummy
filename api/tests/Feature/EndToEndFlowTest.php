@@ -19,7 +19,7 @@ class EndToEndFlowTest extends TestCase
 
     public function test_application_approval_and_booking_flow(): void
     {
-        $plan = MembershipPlan::factory()->create(['name' => 'Bulanan', 'duration_days' => 30]);
+        $plan = MembershipPlan::factory()->create(['name' => '1 Bulan', 'duration_days' => 30]);
         $member = User::factory()->create(['name' => 'Nina Kartika']);
         $admin = User::factory()->admin()->create();
         $schedule = ClassSchedule::factory()->create(['schedule_date' => '2026-11-21']);
@@ -43,7 +43,7 @@ class EndToEndFlowTest extends TestCase
         $this->getJson('/api/v1/admin/members?status=active')
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $member->id)
-            ->assertJsonPath('data.0.plan.name', 'Bulanan')
+            ->assertJsonPath('data.0.plan.name', '1 Bulan')
             ->assertJsonPath('data.0.start_date', '2026-11-20')
             ->assertJsonPath('data.0.end_date', '2026-12-19');
 

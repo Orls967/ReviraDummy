@@ -56,7 +56,7 @@ class AuthTest extends TestCase
 
     public function test_me_returns_current_membership_for_member(): void
     {
-        $plan = MembershipPlan::factory()->create(['name' => 'Bulanan']);
+        $plan = MembershipPlan::factory()->create(['name' => '1 Bulan']);
         $member = $this->actingAsMember();
         Membership::factory()->for($member)->for($plan, 'plan')->active(today()->subDays(5))->create();
 
@@ -65,7 +65,7 @@ class AuthTest extends TestCase
             ->assertJsonPath('data.id', $member->id)
             ->assertJsonPath('data.membership.status', 'active')
             ->assertJsonPath('data.membership.is_active', true)
-            ->assertJsonPath('data.membership.plan.name', 'Bulanan')
+            ->assertJsonPath('data.membership.plan.name', '1 Bulan')
             ->assertJsonPath('data.membership.start_date', '2026-11-15')
             ->assertJsonPath('data.membership.end_date', '2026-12-14');
     }

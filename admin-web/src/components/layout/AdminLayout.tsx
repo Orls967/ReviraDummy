@@ -1,5 +1,5 @@
-import { CalendarDays, LogOut, Package, ReceiptText, Users, type LucideIcon } from 'lucide-react';
-import { NavLink, Outlet } from 'react-router';
+import { CalendarDays, History, LogOut, Package, ReceiptText, Users, type LucideIcon } from 'lucide-react';
+import { NavLink, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../../auth/useAuth';
 import { cn } from '../../lib/cn';
 import { BrandMark } from '../brand/BrandMark';
@@ -17,10 +17,12 @@ const NAV_ITEMS: readonly NavItem[] = [
   { to: '/transactions', label: 'Transaksi', icon: ReceiptText },
   { to: '/schedules', label: 'Jadwal Kelas', icon: CalendarDays },
   { to: '/plans', label: 'Paket Membership', icon: Package },
+  { to: '/activity', label: 'Log Aktivitas', icon: History },
 ];
 
 export function AdminLayout() {
   const { session, logout } = useAuth();
+  const { pathname } = useLocation();
   const userName = session.status === 'authenticated' ? session.user.name : '';
 
   return (
@@ -44,7 +46,7 @@ export function AdminLayout() {
               to={to}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap text-sidebar-muted transition-colors hover:bg-white/5 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-teal/60',
+                  'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap text-sidebar-muted transition-colors duration-150 hover:bg-white/5 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-teal/60',
                   isActive && 'bg-sidebar-accent text-brand-gold hover:bg-sidebar-accent hover:text-brand-gold',
                 )
               }
@@ -71,15 +73,17 @@ export function AdminLayout() {
         </div>
       </aside>
       <div className="min-w-0">
-        <div className="flex items-center justify-end gap-3 border-b px-6 py-2 lg:hidden">
+        <div className="flex items-center justify-end gap-3 border-b px-4 py-2 sm:px-6 lg:hidden">
           <span className="truncate text-sm text-muted-foreground">{userName}</span>
           <Button variant="ghost" size="sm" onClick={() => void logout()}>
             <LogOut aria-hidden="true" />
             Keluar
           </Button>
         </div>
-        <main id="main-content" tabIndex={-1} className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-6 px-6 py-8 focus:outline-none">
-          <Outlet />
+        <main id="main-content" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-6 focus:outline-none sm:px-6 sm:py-8">
+          <div key={pathname} className="grid animate-page-in grid-cols-[minmax(0,1fr)] gap-6">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

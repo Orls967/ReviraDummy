@@ -30,7 +30,7 @@ export function SelectContent({ className, children, ...props }: ComponentProps<
         position="popper"
         sideOffset={4}
         className={cn(
-          'relative z-50 max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md',
+          'relative z-50 origin-(--radix-select-content-transform-origin) animate-menu-in max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md',
           className,
         )}
         {...props}

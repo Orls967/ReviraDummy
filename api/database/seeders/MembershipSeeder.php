@@ -6,8 +6,8 @@ use App\Enums\MembershipRecordType;
 use App\Enums\MembershipStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\TransactionStatus;
-use App\Models\MembershipPlan;
 use App\Models\User;
+use App\Services\Plans\StandardPlanCatalog;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 
@@ -17,28 +17,28 @@ use Illuminate\Database\Seeder;
  */
 class MembershipSeeder extends Seeder
 {
-    public function run(): void
+    public function run(StandardPlanCatalog $catalog): void
     {
         $today = CarbonImmutable::today();
         $admin = User::query()->where('email', UserSeeder::ADMIN_EMAIL)->firstOrFail();
 
         $scenarios = [
-            ['budi@revira.test', MembershipPlanSeeder::MONTHLY, $today->subDays(10), MembershipStatus::Active, PaymentMethod::Transfer, null],
-            ['sari@revira.test', MembershipPlanSeeder::QUARTERLY, $today->subDays(30), MembershipStatus::Active, PaymentMethod::OnTheSpot, null],
-            ['dewi@revira.test', MembershipPlanSeeder::MONTHLY, $today->subDays(45), MembershipStatus::Expired, PaymentMethod::OnTheSpot, null],
-            ['rudi@revira.test', MembershipPlanSeeder::MONTHLY, $today, MembershipStatus::Pending, PaymentMethod::Transfer, null],
-            ['putri@revira.test', MembershipPlanSeeder::QUARTERLY, $today->addDays(2), MembershipStatus::Pending, PaymentMethod::OnTheSpot, null],
-            ['agus@revira.test', MembershipPlanSeeder::MONTHLY, $today->subDays(3), MembershipStatus::Rejected, PaymentMethod::Transfer, 'Nominal transfer tidak sesuai harga paket.'],
+            ['budi@revira.test', StandardPlanCatalog::MONTHLY, $today->subDays(10), MembershipStatus::Active, PaymentMethod::Transfer, null],
+            ['sari@revira.test', StandardPlanCatalog::QUARTERLY, $today->subDays(30), MembershipStatus::Active, PaymentMethod::OnTheSpot, null],
+            ['dewi@revira.test', StandardPlanCatalog::MONTHLY, $today->subDays(45), MembershipStatus::Expired, PaymentMethod::OnTheSpot, null],
+            ['rudi@revira.test', StandardPlanCatalog::MONTHLY, $today, MembershipStatus::Pending, PaymentMethod::Transfer, null],
+            ['putri@revira.test', StandardPlanCatalog::QUARTERLY, $today->addDays(2), MembershipStatus::Pending, PaymentMethod::OnTheSpot, null],
+            ['agus@revira.test', StandardPlanCatalog::MONTHLY, $today->subDays(3), MembershipStatus::Rejected, PaymentMethod::Transfer, 'Nominal transfer tidak sesuai harga paket.'],
         ];
 
-        foreach ($scenarios as [$email, $planName, $startDate, $status, $paymentMethod, $rejectReason]) {
+        foreach ($scenarios as [$email, $planCode, $startDate, $status, $paymentMethod, $rejectReason]) {
             $member = User::query()->where('email', $email)->firstOrFail();
 
             if ($member->memberships()->exists()) {
                 continue;
             }
 
-            $plan = MembershipPlan::query()->where('name', $planName)->firstOrFail();
+            $plan = $catalog->planFor($planCode);
             $isApproved = in_array($status, [MembershipStatus::Active, MembershipStatus::Expired], true);
 
             $membership = $member->memberships()->create([

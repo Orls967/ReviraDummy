@@ -13,7 +13,7 @@ class MembershipApplicationTest extends TestCase
 
     public function test_member_can_apply_for_membership(): void
     {
-        $plan = MembershipPlan::factory()->create(['price' => 150000]);
+        $plan = MembershipPlan::factory()->create(['price' => 500000]);
         $member = $this->actingAsMember();
 
         $this->postJson('/api/v1/member/memberships', [
@@ -27,11 +27,11 @@ class MembershipApplicationTest extends TestCase
             ->assertJsonPath('data.start_date', '2026-11-21')
             ->assertJsonPath('data.end_date', null)
             ->assertJsonPath('data.plan.id', $plan->id)
-            ->assertJsonPath('data.transaction.amount', 150000)
+            ->assertJsonPath('data.transaction.amount', 500000)
             ->assertJsonPath('data.transaction.payment_method', 'transfer')
             ->assertJsonPath('data.transaction.verification_status', 'pending');
 
-        $this->assertDatabaseHas('transactions', ['user_id' => $member->id, 'amount' => 150000, 'verification_status' => 'pending']);
+        $this->assertDatabaseHas('transactions', ['user_id' => $member->id, 'amount' => 500000, 'verification_status' => 'pending']);
     }
 
     public function test_second_application_while_pending_is_rejected(): void

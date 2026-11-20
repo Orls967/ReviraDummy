@@ -70,7 +70,11 @@ export function formatPeriod(start: string | null, end: string | null): string {
     return '—';
   }
 
-  return end === null ? `Mulai ${formatDate(start)}` : `${formatDate(start)} – ${formatDate(end)}`;
+  if (end === null) {
+    return `Mulai ${formatDate(start)}`;
+  }
+
+  return end === start ? formatDate(start) : `${formatDate(start)} – ${formatDate(end)}`;
 }
 
 /** Waktu lokal perangkat dari tanggal "YYYY-MM-DD" dan jam "HH:MM". */

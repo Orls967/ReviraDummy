@@ -1,15 +1,18 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Card, Icon, RadioButton, SegmentedButtons, Text, useTheme } from 'react-native-paper';
+import { Button, Card, Icon, SegmentedButtons, Text, useTheme } from 'react-native-paper';
 import { applyMembership, listPlans } from '../api/memberships';
-import type { Membership, MembershipPlan, PaymentMethod } from '../api/types';
+import type { Membership, PaymentMethod } from '../api/types';
 import { useAuth } from '../auth/useAuth';
 import { DateStrip } from '../components/DateStrip';
+import { FadeIn } from '../components/FadeIn';
 import { InlineError } from '../components/InlineError';
+import { PlanCard } from '../components/PlanCard';
 import { Screen } from '../components/Screen';
 import { EmptyView, ErrorView, LoadingView } from '../components/StateViews';
 import { suggestedStartDate } from '../domain/membershipStatus';
+import { planDurationLabel } from '../domain/plans';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { useMutation } from '../hooks/useMutation';
 import { addDays, formatLongDate, formatPeriod, todayIso } from '../lib/dates';
@@ -38,31 +41,23 @@ function SubmittedView({ membership, onDone }: { membership: Membership; onDone:
 
   return (
     <Screen>
-      <View style={styles.success}>
-        <Icon source="check-decagram" size={56} color={theme.colors.primary} />
+      <View style={styles.success} accessibilityLiveRegion="polite">
+        <FadeIn>
+          <Icon source="check-decagram" size={64} color={theme.colors.primary} />
+        </FadeIn>
         <Text variant="headlineSmall" style={styles.center} accessibilityRole="header">
           Pengajuan terkirim
         </Text>
         <Text variant="bodyMedium" style={[styles.center, { color: theme.colors.onSurfaceVariant }]}>
-          {membership.plan.name}, rencana mulai {formatLongDate(membership.start_date)}. Admin akan memverifikasi pembayaran Anda; status
-          membership di beranda berubah setelah disetujui.
+          {membership.plan.name} ({formatRupiah(membership.transaction?.amount ?? membership.plan.price)}), rencana mulai{' '}
+          {formatLongDate(membership.start_date)}. Admin akan memverifikasi pembayaran Anda; status membership di beranda berubah setelah
+          disetujui.
         </Text>
         <Button mode="contained" onPress={onDone} contentStyle={styles.buttonContent}>
           Kembali ke beranda
         </Button>
       </View>
     </Screen>
-  );
-}
-
-function PlanOption({ plan }: { plan: MembershipPlan }) {
-  return (
-    <RadioButton.Item
-      value={String(plan.id)}
-      label={`${plan.name} · ${plan.duration_days} hari · ${formatRupiah(plan.price)}`}
-      labelVariant="bodyLarge"
-      accessibilityLabel={`${plan.name}, ${plan.duration_days} hari, ${formatRupiah(plan.price)}`}
-    />
   );
 }
 
@@ -126,7 +121,7 @@ export default function ApplyScreen() {
       disabled={submit.isPending || selectedPlan === null}
       contentStyle={styles.buttonContent}
     >
-      Kirim pengajuan
+      {selectedPlan ? `Kirim pengajuan · ${formatRupiah(selectedPlan.price)}` : 'Pilih paket terlebih dahulu'}
     </Button>
   );
 
@@ -137,13 +132,13 @@ export default function ApplyScreen() {
         <Text variant="titleMedium" accessibilityRole="header">
           1. Pilih paket
         </Text>
-        <Card mode="outlined">
-          <RadioButton.Group value={planId} onValueChange={setPlanId}>
-            {plans.data.map((plan) => (
-              <PlanOption key={plan.id} plan={plan} />
-            ))}
-          </RadioButton.Group>
-        </Card>
+        <View accessibilityRole="radiogroup" accessibilityLabel="Paket membership" style={styles.planList}>
+          {plans.data.map((plan, index) => (
+            <FadeIn key={plan.id} index={index}>
+              <PlanCard plan={plan} selected={String(plan.id) === planId} onSelect={() => setPlanId(String(plan.id))} />
+            </FadeIn>
+          ))}
+        </View>
       </View>
       <View style={styles.section}>
         <Text variant="titleMedium" accessibilityRole="header">
@@ -171,18 +166,39 @@ export default function ApplyScreen() {
         </Text>
       </View>
       {selectedPlan && estimatedEnd && (
-        <Card mode="contained" style={{ backgroundColor: theme.colors.surfaceVariant }}>
-          <Card.Content style={styles.summary}>
-            <Text variant="titleSmall">Ringkasan</Text>
-            <Text variant="bodyMedium">{selectedPlan.name}</Text>
-            <Text variant="bodyMedium">Perkiraan periode: {formatPeriod(startDate, estimatedEnd)}</Text>
-            <Text variant="titleMedium" style={{ color: theme.colors.primary }}>
-              {formatRupiah(selectedPlan.price)}
-            </Text>
-          </Card.Content>
-        </Card>
+        <FadeIn key={`${selectedPlan.id}:${startDate}:${paymentMethod}`}>
+          <Card mode="contained" style={{ backgroundColor: theme.colors.surfaceVariant }} accessibilityLiveRegion="polite">
+            <Card.Content style={styles.summary}>
+              <Text variant="titleSmall">Ringkasan pengajuan</Text>
+              <SummaryRow label="Paket" value={`${selectedPlan.name} · ${planDurationLabel(selectedPlan.duration_days)}`} />
+              <SummaryRow label="Perkiraan periode" value={formatPeriod(startDate, estimatedEnd)} />
+              <SummaryRow label="Pembayaran" value={paymentMethod === 'transfer' ? 'Transfer bank' : 'Bayar di tempat'} />
+              <View style={[styles.totalRow, { borderTopColor: theme.colors.outlineVariant }]}>
+                <Text variant="titleSmall">Total bayar</Text>
+                <Text variant="titleLarge" style={styles.total}>
+                  {formatRupiah(selectedPlan.price)}
+                </Text>
+              </View>
+            </Card.Content>
+          </Card>
+        </FadeIn>
       )}
     </Screen>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  const theme = useTheme();
+
+  return (
+    <View style={styles.summaryRow}>
+      <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+        {label}
+      </Text>
+      <Text variant="bodyMedium" style={styles.summaryValue}>
+        {value}
+      </Text>
+    </View>
   );
 }
 
@@ -190,9 +206,34 @@ const styles = StyleSheet.create({
   section: {
     gap: 10,
   },
+  planList: {
+    gap: 10,
+  },
   summary: {
-    gap: 4,
+    gap: 8,
     paddingVertical: 14,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  summaryValue: {
+    flexShrink: 1,
+    textAlign: 'right',
+    fontWeight: '600',
+  },
+  totalRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 10,
+    marginTop: 2,
+  },
+  total: {
+    fontWeight: '800',
   },
   success: {
     alignItems: 'center',
